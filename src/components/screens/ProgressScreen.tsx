@@ -1,96 +1,146 @@
 import { motion } from 'framer-motion';
-import { Flame, Target, Clock, TrendingUp, Zap, Award, BarChart3 } from 'lucide-react';
+import { uiIcons } from '@/assets/iconMap';
 
-const stats = [
-  { label: 'Günlük Streak', value: '3', icon: Flame, color: 'text-neon-orange' },
-  { label: 'Toplam Seans', value: '12', icon: Target, color: 'text-primary' },
-  { label: 'Toplam Süre', value: '48 dk', icon: Clock, color: 'text-secondary' },
-  { label: 'Ort. Doğruluk', value: '%72', icon: TrendingUp, color: 'text-neon-pink' },
-  { label: 'Toplam XP', value: '1,240', icon: Zap, color: 'text-neon-orange' },
-  { label: 'En İyi Combo', value: '7x', icon: Award, color: 'text-neon-red' },
-];
-
-const weekDays = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-const weekActivity = [true, true, true, false, false, false, false]; // demo data
+const weekDays = ['Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt', 'Paz'];
+const weekActivity = [true, true, true, false, false, false, false];
 
 export function ProgressScreen() {
+  const stats = [
+    { label: 'Gunluk Streak', value: '3', icon: uiIcons.streakFire, glow: 'glow-orange' },
+    { label: 'Toplam Seans', value: '12', icon: uiIcons.target, glow: '' },
+    { label: 'Toplam Sure', value: '48 dk', icon: uiIcons.chart, glow: '' },
+    { label: 'Ort. Dogruluk', value: '%72', icon: uiIcons.trophy, glow: '' },
+    { label: 'Toplam XP', value: '1,240', icon: uiIcons.xpBolt, glow: 'glow-green' },
+    { label: 'En Iyi Combo', value: '7x', icon: uiIcons.streakFire, glow: '' },
+  ];
+
   return (
-    <div className="p-4 pb-20 space-y-6">
-      <div className="text-center pt-4">
-        <h1 className="font-display text-2xl font-black text-gradient-energy">İLERLEME</h1>
-        <p className="text-muted-foreground text-sm mt-1">Antrenman geçmişin ve gelişimin</p>
+    <div className="p-4 pb-24 space-y-6">
+      <div className="text-center pt-6">
+        <h1 className="font-display text-4xl font-bold text-gradient-energy tracking-tight">ILERLEME</h1>
+        <p className="text-muted-foreground text-sm mt-1">Antrenman gecmisin ve gelisimin</p>
+      </div>
+
+      {/* Streak highlight */}
+      <div className="card-3d-elevated p-5 glow-orange">
+        <div className="flex items-center gap-4">
+          <img src={uiIcons.streakFire} alt="Streak" width={52} height={52} className="float-3d" />
+          <div>
+            <p className="font-display text-4xl font-bold text-foreground">3</p>
+            <p className="text-xs text-muted-foreground font-display">GUN ARKA ARKAYA</p>
+          </div>
+          <div className="flex-1" />
+          <div className="card-3d-inset p-3 rounded-xl text-center">
+            <p className="font-display text-xl font-bold text-neon-orange">+30</p>
+            <p className="text-[9px] text-muted-foreground">STREAK XP</p>
+          </div>
+        </div>
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05 }}
-              className="glass-card p-4 text-center"
-            >
-              <Icon size={20} className={`${stat.color} mx-auto mb-2`} />
-              <p className={`font-display text-xl font-black ${stat.color}`}>{stat.value}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">{stat.label}</p>
-            </motion.div>
-          );
-        })}
+      <div className="grid grid-cols-3 gap-2.5">
+        {stats.map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.05 }}
+            className={`card-3d p-3.5 text-center ${stat.glow}`}
+          >
+            <img src={stat.icon} alt="" width={24} height={24} className="mx-auto mb-2 object-contain" loading="lazy" />
+            <p className="font-display text-lg font-bold text-foreground">{stat.value}</p>
+            <p className="text-[9px] text-muted-foreground font-display mt-0.5">{stat.label.toUpperCase()}</p>
+          </motion.div>
+        ))}
       </div>
 
       {/* Weekly activity */}
-      <div className="glass-card p-4">
-        <h3 className="font-display text-xs font-bold text-foreground mb-3">BU HAFTA</h3>
+      <div className="card-3d-elevated p-4">
+        <h3 className="font-display text-sm font-bold text-foreground mb-3">BU HAFTA</h3>
         <div className="flex justify-between">
           {weekDays.map((day, i) => (
             <div key={day} className="flex flex-col items-center gap-1.5">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                weekActivity[i] ? 'gradient-success neon-glow-green' : 'bg-muted'
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                weekActivity[i] ? 'btn-3d-success' : 'card-3d-inset'
               }`}>
-                {weekActivity[i] && <span className="text-xs">✅</span>}
+                {weekActivity[i] ? (
+                  <span className="text-[10px] font-display font-bold text-secondary-foreground">OK</span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">-</span>
+                )}
               </div>
-              <span className="text-[10px] text-muted-foreground">{day}</span>
+              <span className="text-[9px] text-muted-foreground font-display">{day}</span>
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-3 text-center">3/7 gün tamamlandı</p>
+        <p className="text-xs text-muted-foreground mt-3 text-center font-display">3/7 gun tamamlandi</p>
       </div>
 
       {/* Zone performance */}
-      <div className="glass-card p-4">
-        <h3 className="font-display text-xs font-bold text-foreground mb-3">BÖLGE PERFORMANSI</h3>
+      <div className="card-3d p-4">
+        <h3 className="font-display text-sm font-bold text-foreground mb-4">BOLGE PERFORMANSI</h3>
         {[
-          { zone: 'Çene Hattı', score: 82, color: 'bg-secondary' },
-          { zone: 'Yanaklar', score: 68, color: 'bg-neon-orange' },
-          { zone: 'Dudaklar', score: 75, color: 'bg-neon-pink' },
-          { zone: 'Gözler', score: 60, color: 'bg-blue-400' },
-          { zone: 'Alın', score: 55, color: 'bg-neon-red' },
+          { zone: 'Cene Hatti', score: 82, gradient: 'from-emerald-400 to-teal-500' },
+          { zone: 'Yanaklar', score: 68, gradient: 'from-orange-400 to-orange-500' },
+          { zone: 'Dudaklar', score: 75, gradient: 'from-pink-400 to-rose-500' },
+          { zone: 'Gozler', score: 60, gradient: 'from-blue-400 to-indigo-500' },
+          { zone: 'Alin', score: 55, gradient: 'from-red-400 to-red-500' },
         ].map((item) => (
-          <div key={item.zone} className="mb-3 last:mb-0">
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted-foreground">{item.zone}</span>
-              <span className="text-foreground font-medium">%{item.score}</span>
+          <div key={item.zone} className="mb-3.5 last:mb-0">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="text-muted-foreground font-display">{item.zone}</span>
+              <span className="text-foreground font-display font-bold">%{item.score}</span>
             </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className="card-3d-inset p-0.5 rounded-full">
               <motion.div
-                className={`h-full rounded-full ${item.color}`}
+                className={`h-2 rounded-full bg-gradient-to-r ${item.gradient}`}
                 initial={{ width: 0 }}
                 animate={{ width: `${item.score}%` }}
                 transition={{ duration: 0.8, delay: 0.2 }}
+                style={{ boxShadow: '0 0 8px hsl(0 0% 100% / 0.1)' }}
               />
             </div>
           </div>
         ))}
       </div>
 
+      {/* Session History */}
+      <div className="card-3d p-4">
+        <h3 className="font-display text-sm font-bold text-foreground mb-3">SON SEANSLAR</h3>
+        {[
+          { date: 'Bugun', mode: 'Hizli Oyun', score: 340, accuracy: 78 },
+          { date: 'Dun', mode: 'GymFiesta', score: 420, accuracy: 82 },
+          { date: '2 gun once', mode: 'Rehberli', score: 280, accuracy: 65 },
+        ].map((session, i) => (
+          <div key={i} className="card-3d-inset p-3 mb-2 last:mb-0 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-display font-bold text-foreground">{session.mode}</p>
+              <p className="text-[10px] text-muted-foreground">{session.date}</p>
+            </div>
+            <div className="flex gap-3">
+              <div className="text-right">
+                <p className="font-display text-sm font-bold text-foreground">{session.score}</p>
+                <p className="text-[9px] text-muted-foreground">PUAN</p>
+              </div>
+              <div className="text-right">
+                <p className="font-display text-sm font-bold text-secondary">%{session.accuracy}</p>
+                <p className="text-[9px] text-muted-foreground">DOGRULUK</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* AI Coach */}
-      <div className="glass-card p-4 border-primary/30 neon-glow-red">
-        <h3 className="font-display text-xs font-bold text-primary mb-2">🤖 AI KOÇ ÖZETİ</h3>
-        <p className="text-sm text-muted-foreground">
-          Bugün jawline hareketlerinde daha stabildin. Cheek Puff'ta simetri biraz düştü, yarın bunu iyileştirebiliriz. Üç gündür ritmini koruyorsun, bu çok iyi! 💪
+      <div className="card-3d-elevated p-4 glow-red">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6 h-6 rounded-lg btn-3d-primary flex items-center justify-center">
+            <span className="text-[10px] text-primary-foreground font-bold">AI</span>
+          </div>
+          <p className="font-display text-xs font-bold text-primary">AI KOC OZETI</p>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Bugyn jawline hareketlerinde daha stabildin. Cheek Puff hareketinde simetri biraz dusmus, yarin bunu iyilestirebiliriz. Uc gundur ritmini koruyorsun, bu cok iyi!
         </p>
       </div>
     </div>

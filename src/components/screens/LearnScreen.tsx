@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter } from 'lucide-react';
 import { EXERCISES } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { ExerciseDefinition, ExerciseZone } from '@/types/exercises';
+import { exerciseIcons } from '@/assets/iconMap';
 
-const zones: { id: ExerciseZone | 'all'; label: string; emoji: string }[] = [
-  { id: 'all', label: 'Tümü', emoji: '✨' },
-  { id: 'forehead', label: 'Alın', emoji: '🧠' },
-  { id: 'eyes', label: 'Gözler', emoji: '👁' },
-  { id: 'cheeks', label: 'Yanaklar', emoji: '🍑' },
-  { id: 'lips', label: 'Dudaklar', emoji: '👄' },
-  { id: 'jaw', label: 'Çene', emoji: '💎' },
-  { id: 'neck', label: 'Boyun', emoji: '🦢' },
+const zones: { id: ExerciseZone | 'all'; label: string }[] = [
+  { id: 'all', label: 'Tumu' },
+  { id: 'forehead', label: 'Alin' },
+  { id: 'eyes', label: 'Gozler' },
+  { id: 'cheeks', label: 'Yanaklar' },
+  { id: 'lips', label: 'Dudaklar' },
+  { id: 'jaw', label: 'Cene' },
+  { id: 'neck', label: 'Boyun' },
 ];
 
 export function LearnScreen() {
@@ -27,64 +27,74 @@ export function LearnScreen() {
   });
 
   if (selectedExercise) {
+    const iconSrc = exerciseIcons[selectedExercise.id];
     return (
-      <div className="p-4 pb-20 space-y-4">
-        <button onClick={() => setSelectedExercise(null)} className="text-sm text-muted-foreground">← Geri</button>
-        <div className="glass-card p-6">
+      <div className="p-4 pb-24 space-y-4">
+        <button onClick={() => setSelectedExercise(null)} className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display">← Geri</button>
+        <div className="card-3d-elevated p-6 glow-red">
           <div className="text-center mb-6">
-            <span className="text-5xl">{selectedExercise.icon}</span>
-            <h2 className="font-display text-xl font-black text-foreground mt-3">{selectedExercise.nameTr}</h2>
+            {iconSrc && <img src={iconSrc} alt={selectedExercise.nameTr} width={80} height={80} className="mx-auto float-3d" />}
+            <h2 className="font-display text-2xl font-bold text-foreground mt-4">{selectedExercise.nameTr}</h2>
             <p className="text-sm text-muted-foreground mt-1">{selectedExercise.name}</p>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-display text-xs font-bold text-primary mb-1">NE İŞE YARAR</h3>
-              <p className="text-sm text-muted-foreground">{selectedExercise.descriptionTr}</p>
+          <div className="space-y-5">
+            <div className="card-3d p-4">
+              <h3 className="font-display text-xs font-bold text-primary mb-2">NE ISE YARAR</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{selectedExercise.descriptionTr}</p>
             </div>
-            <div>
-              <h3 className="font-display text-xs font-bold text-secondary mb-1">NASIL YAPILIR</h3>
-              <p className="text-sm text-muted-foreground">{selectedExercise.howToTr}</p>
+            <div className="card-3d p-4">
+              <h3 className="font-display text-xs font-bold text-secondary mb-2">NASIL YAPILIR</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{selectedExercise.howToTr}</p>
             </div>
-            <div>
-              <h3 className="font-display text-xs font-bold text-neon-orange mb-1">SIK HATALAR</h3>
-              <ul className="space-y-1">
+            <div className="card-3d p-4">
+              <h3 className="font-display text-xs font-bold text-neon-orange mb-2">SIK HATALAR</h3>
+              <ul className="space-y-1.5">
                 {selectedExercise.commonMistakesTr.map((m, i) => (
-                  <li key={i} className="text-sm text-muted-foreground">• {m}</li>
+                  <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-neon-orange mt-1.5 shrink-0" />
+                    {m}
+                  </li>
                 ))}
               </ul>
             </div>
-            <div className="flex gap-3 text-xs text-muted-foreground">
-              <span>⏱ {selectedExercise.holdDurationSec}s tutma</span>
-              <span>🔄 {selectedExercise.reps} tekrar</span>
-              <span>📍 {selectedExercise.zone}</span>
+            <div className="flex gap-3">
+              <div className="card-3d-inset flex-1 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground font-display">SURE</p>
+                <p className="font-display text-lg font-bold text-foreground">{selectedExercise.holdDurationSec}s</p>
+              </div>
+              <div className="card-3d-inset flex-1 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground font-display">TEKRAR</p>
+                <p className="font-display text-lg font-bold text-foreground">{selectedExercise.reps}x</p>
+              </div>
+              <div className="card-3d-inset flex-1 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground font-display">BOLGE</p>
+                <p className="font-display text-lg font-bold text-foreground capitalize">{selectedExercise.zone}</p>
+              </div>
             </div>
           </div>
-
-          <button className="w-full mt-6 py-3 rounded-xl gradient-primary font-display text-sm font-bold text-primary-foreground neon-glow-red">
-            ŞİMDİ DENE 🔥
-          </button>
+          <button className="w-full mt-6 py-3.5 btn-3d-primary text-primary-foreground text-base">SIMDI DENE</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 pb-20 space-y-4">
-      <div className="text-center pt-4">
-        <h1 className="font-display text-2xl font-black text-gradient-energy">ÖĞREN</h1>
-        <p className="text-muted-foreground text-sm mt-1">Hareket kütüphanesi</p>
+    <div className="p-4 pb-24 space-y-5">
+      <div className="text-center pt-6">
+        <h1 className="font-display text-4xl font-bold text-gradient-energy tracking-tight">OGREN</h1>
+        <p className="text-muted-foreground text-sm mt-1">Hareket kutuphanesi</p>
       </div>
 
       {/* Search */}
-      <div className="glass-card flex items-center gap-2 px-3 py-2">
-        <Search size={16} className="text-muted-foreground" />
+      <div className="card-3d-inset flex items-center gap-3 px-4 py-3">
+        <span className="text-muted-foreground text-sm">⌕</span>
         <input
           type="text"
           placeholder="Hareket ara..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-body"
         />
       </div>
 
@@ -94,33 +104,23 @@ export function LearnScreen() {
           <button
             key={zone.id}
             onClick={() => setSelectedZone(zone.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-              selectedZone === zone.id
-                ? 'gradient-primary text-primary-foreground neon-glow-red'
-                : 'glass-card text-muted-foreground'
+            className={`px-4 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap transition-all ${
+              selectedZone === zone.id ? 'btn-3d-primary text-primary-foreground' : 'card-3d text-muted-foreground hover:text-foreground'
             }`}
           >
-            <span>{zone.emoji}</span>
-            {zone.label}
+            {zone.label.toUpperCase()}
           </button>
         ))}
       </div>
 
       {/* Exercise list */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {filtered.map((ex, i) => (
-          <motion.div
-            key={ex.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-          >
+          <motion.div key={ex.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
             <ExerciseCard exercise={ex} onClick={() => setSelectedExercise(ex)} />
           </motion.div>
         ))}
-        {filtered.length === 0 && (
-          <p className="text-center text-muted-foreground text-sm py-8">Hareket bulunamadı</p>
-        )}
+        {filtered.length === 0 && <p className="text-center text-muted-foreground text-sm py-8 card-3d p-6">Hareket bulunamadi</p>}
       </div>
     </div>
   );

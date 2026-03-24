@@ -1,5 +1,6 @@
 import { ExerciseDefinition } from '@/types/exercises';
 import { motion } from 'framer-motion';
+import { exerciseIcons } from '@/assets/iconMap';
 
 interface ExerciseCardProps {
   exercise: ExerciseDefinition;
@@ -8,54 +9,80 @@ interface ExerciseCardProps {
   onClick?: () => void;
 }
 
-const zoneBadgeColors: Record<string, string> = {
-  forehead: 'bg-neon-pink/20 text-neon-pink',
-  eyes: 'bg-blue-500/20 text-blue-400',
-  cheeks: 'bg-neon-orange/20 text-neon-orange',
-  lips: 'bg-neon-red/20 text-neon-red',
-  jaw: 'bg-neon-green/20 text-neon-green',
-  neck: 'bg-purple-500/20 text-purple-400',
+const zoneLabelColors: Record<string, string> = {
+  forehead: 'text-neon-pink',
+  eyes: 'text-neon-cyan',
+  cheeks: 'text-neon-orange',
+  lips: 'text-neon-red',
+  jaw: 'text-neon-green',
+  neck: 'text-accent',
 };
 
-const difficultyColors: Record<string, string> = {
-  beginner: 'text-secondary',
-  intermediate: 'text-neon-orange',
-  advanced: 'text-neon-red',
+const zoneLabels: Record<string, string> = {
+  forehead: 'Alin',
+  eyes: 'Gozler',
+  cheeks: 'Yanaklar',
+  lips: 'Dudaklar',
+  jaw: 'Cene',
+  neck: 'Boyun',
 };
 
 export function ExerciseCard({ exercise, isActive, isCompleted, onClick }: ExerciseCardProps) {
+  const iconSrc = exerciseIcons[exercise.id];
+  
   return (
     <motion.div
-      whileHover={{ scale: 1.02 }}
+      whileHover={{ scale: 1.02, y: -2 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className={`glass-card p-4 cursor-pointer transition-all ${
-        isActive ? 'neon-glow-red border-primary/50' : ''
-      } ${isCompleted ? 'neon-glow-green border-secondary/50' : ''} ${
-        isActive ? 'pulse-ring' : ''
+      className={`cursor-pointer transition-all ${
+        isActive ? 'card-3d-elevated glow-red pulse-ring' : isCompleted ? 'card-3d glow-green' : 'card-3d'
       }`}
     >
-      <div className="flex items-start gap-3">
-        <span className="text-3xl">{exercise.icon}</span>
+      <div className="p-4 flex items-center gap-4">
+        <div className="relative w-14 h-14 shrink-0">
+          {iconSrc ? (
+            <img
+              src={iconSrc}
+              alt={exercise.nameTr}
+              width={56}
+              height={56}
+              loading="lazy"
+              className={`w-full h-full object-contain ${isActive ? 'float-3d' : ''}`}
+            />
+          ) : (
+            <div className="w-full h-full rounded-xl card-3d-inset flex items-center justify-center">
+              <span className="font-display text-lg font-bold text-muted-foreground">{exercise.name[0]}</span>
+            </div>
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-display text-sm font-bold text-foreground truncate">
+            <h3 className="font-display text-base font-bold text-foreground truncate">
               {exercise.nameTr}
             </h3>
-            {isCompleted && <span className="text-secondary text-xs">✅</span>}
+            {isCompleted && (
+              <div className="w-5 h-5 rounded-full btn-3d-success flex items-center justify-center">
+                <span className="text-[10px] text-secondary-foreground">OK</span>
+              </div>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+          <p className="text-xs text-muted-foreground line-clamp-1 mb-2">
             {exercise.descriptionTr}
           </p>
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full ${zoneBadgeColors[exercise.zone] || ''}`}>
-              {exercise.zone}
+          <div className="flex items-center gap-3">
+            <span className={`text-[10px] font-display font-bold ${zoneLabelColors[exercise.zone]}`}>
+              {zoneLabels[exercise.zone] || exercise.zone}
             </span>
-            <span className={`text-[10px] font-medium ${difficultyColors[exercise.difficulty]}`}>
-              {exercise.difficulty === 'beginner' ? 'Başlangıç' : exercise.difficulty === 'intermediate' ? 'Orta' : 'İleri'}
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              {exercise.holdDurationSec}s × {exercise.reps}
+            <div className="card-3d-inset px-2 py-0.5">
+              <span className="text-[9px] font-body text-muted-foreground">
+                {exercise.holdDurationSec}s x {exercise.reps}
+              </span>
+            </div>
+            <span className={`text-[9px] font-display font-bold ${
+              exercise.difficulty === 'beginner' ? 'text-secondary' : exercise.difficulty === 'intermediate' ? 'text-neon-orange' : 'text-neon-red'
+            }`}>
+              {exercise.difficulty === 'beginner' ? 'KOLAY' : exercise.difficulty === 'intermediate' ? 'ORTA' : 'ZOR'}
             </span>
           </div>
         </div>
