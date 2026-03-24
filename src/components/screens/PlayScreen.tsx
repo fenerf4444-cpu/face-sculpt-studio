@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { EXERCISES, QUICK_PLAY_EXERCISES, GYMFIESTA_EXERCISES } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { ExerciseDefinition, GameMode, SessionScore, EvaluatorResult } from '@/types/exercises';
@@ -11,6 +11,12 @@ import { EVALUATOR_MAP } from '@/lib/evaluators';
 import { uiIcons, exerciseIcons } from '@/assets/iconMap';
 
 type PlayPhase = 'menu' | 'preparing' | 'training' | 'summary';
+
+const MODES = [
+  { id: 'quick-play' as GameMode, name: 'Hizli Oyun', desc: '5 hareket, 3 set x 30 sn', icon: uiIcons.gamepad, exercises: QUICK_PLAY_EXERCISES, glow: 'glow-red' },
+  { id: 'guided-training' as GameMode, name: 'Rehberli Antrenman', desc: 'Tum hareketler, 3 set x 30 sn', icon: uiIcons.target, exercises: EXERCISES, glow: 'glow-green' },
+  { id: 'gymfiesta' as GameMode, name: 'GymFiesta Challenge', desc: '4 aksiyon, yogun challenge', icon: uiIcons.streakFire, exercises: GYMFIESTA_EXERCISES, glow: 'glow-orange' },
+];
 
 export function PlayScreen() {
   const [phase, setPhase] = useState<PlayPhase>('menu');
@@ -29,19 +35,21 @@ export function PlayScreen() {
   const [dailyQuest] = useState({ target: 3, completed: 1 });
   const [isResting, setIsResting] = useState(false);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
+  const [modelError, setModelError] = useState<string | null>(null);
 
   const { videoRef, metrics, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionAccuracies = useRef<number[]>([]);
 
-  const modes = [
-    { id: 'quick-play' as GameMode, name: 'Hizli Oyun', desc: '5 hareket, 3 set x 30 sn', icon: uiIcons.gamepad, exercises: QUICK_PLAY_EXERCISES, glow: 'glow-red' },
-    { id: 'guided-training' as GameMode, name: 'Rehberli Antrenman', desc: 'Tum hareketler, 3 set x 30 sn', icon: uiIcons.target, exercises: EXERCISES, glow: 'glow-green' },
-    { id: 'gymfiesta' as GameMode, name: 'GymFiesta Challenge', desc: '4 aksiyon, yogun challenge', icon: uiIcons.streakFire, exercises: GYMFIESTA_EXERCISES, glow: 'glow-orange' },
-  ];
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
   const startMode = useCallback(async (mode: GameMode) => {
-    const modeConfig = modes.find(m => m.id === mode);
+    const modeConfig = MODES.find(m => m.id === mode);
     if (!modeConfig) return;
     setSelectedMode(mode);
     setActiveExercises(modeConfig.exercises);
@@ -51,9 +59,14 @@ export function PlayScreen() {
     setCombo(0);
     setXp(0);
     setCompletedIds(new Set());
+    setModelError(null);
     sessionAccuracies.current = [];
-    await startCamera();
-    startDetection();
+    try {
+      const ok = await startCamera();
+      if (ok) startDetection();
+    } catch {
+      setModelError('Kamera baslatma hatasi');
+    }
   }, [startCamera, startDetection]);
 
   const startTraining = useCallback(() => {
@@ -67,39 +80,37 @@ export function PlayScreen() {
     }
   }, [compatibility.allReady, activeExercises]);
 
-  // Main training loop using REAL face metrics
+  // Main training loop
   useEffect(() => {
     if (phase !== 'training' || isPaused || activeExercises.length === 0) return;
 
-    // Handle rest period between sets
     if (isResting) {
       timerRef.current = setInterval(() => {
         setRestTimeLeft(prev => {
           if (prev <= 0.1) {
             setIsResting(false);
             const ex = activeExercises[currentIdx];
-            setTimeLeft(ex.holdDurationSec);
-            setHoldTime(0);
+            if (ex) {
+              setTimeLeft(ex.holdDurationSec);
+              setHoldTime(0);
+            }
             return 0;
           }
           return prev - 0.1;
         });
       }, 100);
-      return () => { if (timerRef.current) clearInterval(timerRef.current); };
+      return () => clearTimer();
     }
 
     const ex = activeExercises[currentIdx];
     if (!ex) return;
 
     timerRef.current = setInterval(() => {
-      // Evaluate with REAL metrics from face-api.js
       if (metrics) {
         const evaluator = EVALUATOR_MAP[ex.id];
         if (evaluator) {
           const result = evaluator(metrics, holdTime);
           setEvaluation(result);
-
-          // Only count hold time when pose is detected
           if (result.isDetected) {
             setHoldTime(h => h + 0.1);
           }
@@ -108,21 +119,18 @@ export function PlayScreen() {
 
       setTimeLeft(prev => {
         if (prev <= 0.1) {
-          // Set completed
           const accuracy = evaluation?.accuracyScore || 0;
           sessionAccuracies.current.push(accuracy);
           setXp(p => p + Math.round(accuracy * 30));
 
           if (currentSet >= ex.reps) {
-            // All sets done for this exercise
             setCompletedIds(p => new Set(p).add(ex.id));
             setCombo(p => p + 1);
-            setXp(p => p + 25); // completion bonus
+            setXp(p => p + 25);
 
             const nextIdx = currentIdx + 1;
             if (nextIdx >= activeExercises.length) {
-              // Session complete
-              clearInterval(timerRef.current!);
+              clearTimer();
               const avgAccuracy = sessionAccuracies.current.length > 0
                 ? sessionAccuracies.current.reduce((a, b) => a + b, 0) / sessionAccuracies.current.length
                 : 0.5;
@@ -141,19 +149,17 @@ export function PlayScreen() {
               return 0;
             }
 
-            // Move to next exercise after rest
             setCurrentIdx(nextIdx);
             setCurrentSet(1);
             setHoldTime(0);
             setIsResting(true);
-            setRestTimeLeft(5); // 5 second rest between exercises
+            setRestTimeLeft(5);
             return 0;
           } else {
-            // Next set of same exercise after short rest
             setCurrentSet(s => s + 1);
             setHoldTime(0);
             setIsResting(true);
-            setRestTimeLeft(3); // 3 second rest between sets
+            setRestTimeLeft(3);
             return 0;
           }
         }
@@ -161,15 +167,16 @@ export function PlayScreen() {
       });
     }, 100);
 
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [phase, isPaused, currentIdx, currentSet, activeExercises, metrics, holdTime, combo, xp, evaluation?.accuracyScore, isResting]);
+    return () => clearTimer();
+  }, [phase, isPaused, currentIdx, currentSet, activeExercises, metrics, holdTime, combo, xp, evaluation?.accuracyScore, isResting, clearTimer]);
 
   const endSession = useCallback(() => {
+    clearTimer();
     stopCamera();
     setPhase('menu');
     setSessionScore(null);
-    if (timerRef.current) clearInterval(timerRef.current);
-  }, [stopCamera]);
+    setEvaluation(null);
+  }, [stopCamera, clearTimer]);
 
   if (phase === 'summary' && sessionScore) {
     return <SessionSummary score={sessionScore} onClose={endSession} coachMessage="Bugyn jawline hareketlerinde daha stabildin. Yarin simetri hareketlerine odaklanalim." />;
@@ -180,39 +187,47 @@ export function PlayScreen() {
     return (
       <div className="relative h-[calc(100vh-4rem)] bg-background">
         <div className="absolute inset-0 bg-muted flex items-center justify-center">
-          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted />
+          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
           <div className="absolute inset-0" style={{
             background: 'linear-gradient(to top, hsl(240 10% 4% / 0.8) 0%, transparent 40%, hsl(240 10% 4% / 0.6) 100%)'
           }} />
         </div>
 
-        {isResting ? (
-          <div className="absolute inset-0 z-30 flex items-center justify-center">
-            <div className="text-center card-3d-elevated p-8 glow-green">
-              <p className="font-display text-lg text-muted-foreground mb-2">DINLENME</p>
-              <p className="font-display text-5xl font-bold text-foreground">{Math.ceil(restTimeLeft)}</p>
-              <p className="text-sm text-muted-foreground mt-3">
-                {currentSet < (ex?.reps || 3)
-                  ? `Sonraki set: ${currentSet + 1}/${ex?.reps || 3}`
-                  : `Sonraki hareket: ${activeExercises[currentIdx + 1]?.nameTr || ''}`
-                }
-              </p>
-            </div>
-          </div>
-        ) : (
-          <TrainingHUD
-            exerciseName={ex?.nameTr || ''}
-            exerciseId={ex?.id || ''}
-            timeLeft={timeLeft}
-            totalTime={ex?.holdDurationSec || 30}
-            rep={currentSet}
-            totalReps={ex?.reps || 3}
-            evaluation={evaluation}
-            combo={combo}
-            xp={xp}
-            isPaused={isPaused}
-          />
-        )}
+        <AnimatePresence>
+          {isResting ? (
+            <motion.div
+              key="rest"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="absolute inset-0 z-30 flex items-center justify-center"
+            >
+              <div className="text-center card-3d-elevated p-8 glow-green">
+                <p className="font-display text-lg text-muted-foreground mb-2">DINLENME</p>
+                <p className="font-display text-5xl font-bold text-foreground">{Math.ceil(restTimeLeft)}</p>
+                <p className="text-sm text-muted-foreground mt-3">
+                  {currentSet < (ex?.reps || 3)
+                    ? `Sonraki set: ${currentSet + 1}/${ex?.reps || 3}`
+                    : `Sonraki: ${activeExercises[currentIdx + 1]?.nameTr || ''}`
+                  }
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <TrainingHUD
+              exerciseName={ex?.nameTr || ''}
+              exerciseId={ex?.id || ''}
+              timeLeft={timeLeft}
+              totalTime={ex?.holdDurationSec || 30}
+              rep={currentSet}
+              totalReps={ex?.reps || 3}
+              evaluation={evaluation}
+              combo={combo}
+              xp={xp}
+              isPaused={isPaused}
+            />
+          )}
+        </AnimatePresence>
 
         {/* Exercise sidebar */}
         <div className="absolute right-2 top-36 bottom-28 z-10 w-[60px] flex flex-col gap-2 overflow-y-auto">
@@ -226,7 +241,7 @@ export function PlayScreen() {
           })}
         </div>
 
-        {/* Real-time metrics debug (small) */}
+        {/* Live metrics */}
         {metrics && !isResting && (
           <div className="absolute left-2 bottom-20 z-10 card-3d-inset p-2 text-[9px] font-mono text-muted-foreground space-y-0.5 opacity-60">
             <div>Agiz: {(metrics.mouthOpenness * 100).toFixed(0)}%</div>
@@ -252,7 +267,7 @@ export function PlayScreen() {
     return (
       <div className="relative h-[calc(100vh-4rem)] bg-background">
         <div className="absolute inset-0">
-          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1] opacity-30" playsInline muted />
+          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1] opacity-30" playsInline muted autoPlay />
         </div>
         <div className="relative z-10 flex flex-col items-center justify-center h-full p-6">
           <h2 className="font-display text-2xl font-bold text-foreground mb-6">HAZIRLIK KONTROLU</h2>
@@ -260,6 +275,12 @@ export function PlayScreen() {
           {!modelsReady && (
             <div className="card-3d-elevated px-6 py-3 mb-4 glow-orange">
               <p className="text-sm font-display text-neon-orange">Yuz algilama modeli yukleniyor...</p>
+            </div>
+          )}
+
+          {modelError && (
+            <div className="card-3d-elevated px-6 py-3 mb-4 glow-red">
+              <p className="text-sm font-display text-destructive">{modelError}</p>
             </div>
           )}
 
@@ -315,7 +336,7 @@ export function PlayScreen() {
       </div>
 
       <div className="space-y-3">
-        {modes.map((mode, i) => (
+        {MODES.map((mode, i) => (
           <motion.button
             key={mode.id}
             initial={{ opacity: 0, y: 20 }}
