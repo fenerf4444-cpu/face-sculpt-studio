@@ -1,42 +1,37 @@
 import { motion } from 'framer-motion';
-import { CheckCircle, AlertTriangle, XCircle, Loader2 } from 'lucide-react';
 import { CompatibilityState } from '@/types/exercises';
-
-interface CompatibilityCheckProps {
-  state: CompatibilityState;
-}
 
 const statusConfig = {
   camera: {
-    checking: { icon: Loader2, text: 'Kamera kontrol ediliyor...', color: 'text-muted-foreground', spin: true },
-    ready: { icon: CheckCircle, text: 'Kamera hazır ✅', color: 'text-secondary', spin: false },
-    'no-camera': { icon: XCircle, text: 'Kamera bulunamadı', color: 'text-destructive', spin: false },
-    'no-permission': { icon: AlertTriangle, text: 'Kamera izni gerekli', color: 'text-neon-orange', spin: false },
-    error: { icon: XCircle, text: 'Kamera hatası', color: 'text-destructive', spin: false },
+    checking: { text: 'Kamera kontrol ediliyor...', color: 'text-muted-foreground', dot: 'bg-muted-foreground', spin: true },
+    ready: { text: 'Kamera hazir', color: 'text-secondary', dot: 'bg-secondary', spin: false },
+    'no-camera': { text: 'Kamera bulunamadi', color: 'text-destructive', dot: 'bg-destructive', spin: false },
+    'no-permission': { text: 'Kamera izni gerekli', color: 'text-neon-orange', dot: 'bg-neon-orange', spin: false },
+    error: { text: 'Kamera hatasi', color: 'text-destructive', dot: 'bg-destructive', spin: false },
   },
   light: {
-    checking: { icon: Loader2, text: 'Işık kontrol ediliyor...', color: 'text-muted-foreground', spin: true },
-    good: { icon: CheckCircle, text: 'Işık yeterli ✅', color: 'text-secondary', spin: false },
-    low: { icon: AlertTriangle, text: 'Daha aydınlık yere geç', color: 'text-neon-orange', spin: false },
-    'too-dark': { icon: XCircle, text: 'Çok karanlık, ışığı artır', color: 'text-destructive', spin: false },
+    checking: { text: 'Isik kontrol ediliyor...', color: 'text-muted-foreground', dot: 'bg-muted-foreground', spin: true },
+    good: { text: 'Isik yeterli', color: 'text-secondary', dot: 'bg-secondary', spin: false },
+    low: { text: 'Daha aydinlik yere gec', color: 'text-neon-orange', dot: 'bg-neon-orange', spin: false },
+    'too-dark': { text: 'Cok karanlik, isigi artir', color: 'text-destructive', dot: 'bg-destructive', spin: false },
   },
   face: {
-    searching: { icon: Loader2, text: 'Yüz aranıyor...', color: 'text-muted-foreground', spin: true },
-    detected: { icon: CheckCircle, text: 'Yüz algılandı ✅', color: 'text-secondary', spin: false },
-    'too-close': { icon: AlertTriangle, text: 'Yüzünü biraz uzaklaştır', color: 'text-neon-orange', spin: false },
-    'too-far': { icon: AlertTriangle, text: 'Yüzünü kadraja yaklaştır', color: 'text-neon-orange', spin: false },
-    'not-found': { icon: XCircle, text: 'Yüz algılanamadı', color: 'text-destructive', spin: false },
-    unstable: { icon: AlertTriangle, text: 'Başını sabit tut', color: 'text-neon-orange', spin: false },
+    searching: { text: 'Yuz araniyor...', color: 'text-muted-foreground', dot: 'bg-muted-foreground', spin: true },
+    detected: { text: 'Yuz algilandi', color: 'text-secondary', dot: 'bg-secondary', spin: false },
+    'too-close': { text: 'Yuzunu biraz uzaklastir', color: 'text-neon-orange', dot: 'bg-neon-orange', spin: false },
+    'too-far': { text: 'Yuzunu kadraja yaklastir', color: 'text-neon-orange', dot: 'bg-neon-orange', spin: false },
+    'not-found': { text: 'Yuz algilanamadi', color: 'text-destructive', dot: 'bg-destructive', spin: false },
+    unstable: { text: 'Basini sabit tut', color: 'text-neon-orange', dot: 'bg-neon-orange', spin: false },
   },
   tracking: {
-    high: { icon: CheckCircle, text: 'Takip kalitesi yüksek ✅', color: 'text-secondary', spin: false },
-    medium: { icon: CheckCircle, text: 'Takip kalitesi orta', color: 'text-neon-orange', spin: false },
-    low: { icon: AlertTriangle, text: 'Takip kalitesi düşük', color: 'text-neon-orange', spin: false },
-    none: { icon: XCircle, text: 'Takip yok', color: 'text-muted-foreground', spin: false },
+    high: { text: 'Takip kalitesi yuksek', color: 'text-secondary', dot: 'bg-secondary', spin: false },
+    medium: { text: 'Takip kalitesi orta', color: 'text-neon-orange', dot: 'bg-neon-orange', spin: false },
+    low: { text: 'Takip kalitesi dusuk', color: 'text-neon-orange', dot: 'bg-neon-orange', spin: false },
+    none: { text: 'Takip yok', color: 'text-muted-foreground', dot: 'bg-muted-foreground', spin: false },
   },
 };
 
-export function CompatibilityCheck({ state }: CompatibilityCheckProps) {
+export function CompatibilityCheck({ state }: { state: CompatibilityState }) {
   const items = [
     { key: 'camera' as const, value: state.camera },
     { key: 'light' as const, value: state.light },
@@ -45,21 +40,22 @@ export function CompatibilityCheck({ state }: CompatibilityCheckProps) {
   ];
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {items.map((item, i) => {
         const config = (statusConfig[item.key] as any)[item.value];
         if (!config) return null;
-        const Icon = config.icon;
         return (
           <motion.div
             key={item.key}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="flex items-center gap-3 glass-card px-4 py-2.5"
+            className="card-3d px-4 py-3 flex items-center gap-3"
           >
-            <Icon size={18} className={`${config.color} ${config.spin ? 'animate-spin' : ''}`} />
-            <span className={`text-sm font-medium ${config.color}`}>{config.text}</span>
+            <div className={`w-2.5 h-2.5 rounded-full ${config.dot} ${config.spin ? 'animate-pulse' : ''}`}
+              style={{ boxShadow: `0 0 8px currentColor` }}
+            />
+            <span className={`text-sm font-display font-bold ${config.color}`}>{config.text}</span>
           </motion.div>
         );
       })}

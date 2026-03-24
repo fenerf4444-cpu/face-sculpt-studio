@@ -1,65 +1,69 @@
 import { motion } from 'framer-motion';
-import { User, Bell, Volume2, Camera as CameraIcon, Shield, Trash2, LogIn, ChevronRight, Crown } from 'lucide-react';
+import { uiIcons } from '@/assets/iconMap';
 
 export function ProfileScreen() {
   const menuItems = [
-    { icon: LogIn, label: 'Hesabı Bağla', desc: 'Google / Apple ile giriş yap', color: 'text-secondary' },
-    { icon: Crown, label: 'Premium', desc: 'Tüm özellikleri aç', color: 'text-neon-orange' },
-    { icon: Bell, label: 'Bildirimler', desc: 'Hatırlatma saatlerini ayarla', color: 'text-neon-pink' },
-    { icon: Volume2, label: 'Ses & Ritim', desc: 'Müzik ve ses efektleri', color: 'text-blue-400' },
-    { icon: CameraIcon, label: 'Kamera Ayarları', desc: 'Performans ve kalite', color: 'text-neon-green' },
-    { icon: Shield, label: 'Gizlilik', desc: 'Veri yönetimi ve güvenlik', color: 'text-muted-foreground' },
-    { icon: Trash2, label: 'Hesap Sil', desc: 'Tüm verileri kaldır', color: 'text-destructive' },
+    { label: 'Hesabi Bagla', desc: 'Google / Apple ile giris yap', color: 'text-secondary' },
+    { label: 'Premium', desc: 'Tum ozellikleri ac', color: 'text-neon-orange' },
+    { label: 'Bildirimler', desc: 'Hatirlatma saatlerini ayarla', color: 'text-neon-pink' },
+    { label: 'Ses & Ritim', desc: 'Muzik ve ses efektleri', color: 'text-neon-cyan' },
+    { label: 'Kamera Ayarlari', desc: 'Performans ve kalite', color: 'text-neon-green' },
+    { label: 'Gizlilik', desc: 'Veri yonetimi ve guvenlik', color: 'text-muted-foreground' },
+    { label: 'Hesap Sil', desc: 'Tum verileri kaldir', color: 'text-destructive' },
   ];
 
   return (
-    <div className="p-4 pb-20 space-y-6">
-      <div className="text-center pt-4">
-        <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-          <User size={32} className="text-muted-foreground" />
+    <div className="p-4 pb-24 space-y-6">
+      {/* Avatar */}
+      <div className="text-center pt-6">
+        <div className="w-24 h-24 rounded-2xl card-3d-elevated mx-auto mb-4 flex items-center justify-center glow-red overflow-hidden">
+          <img src={uiIcons.trophy} alt="Profil" width={52} height={52} className="object-contain float-3d" />
         </div>
-        <h1 className="font-display text-lg font-black text-foreground">Anonim Kullanıcı</h1>
-        <p className="text-xs text-muted-foreground mt-1">Hesabını bağlayarak verilerini koru</p>
+        <h1 className="font-display text-xl font-bold text-foreground">Anonim Kullanici</h1>
+        <p className="text-xs text-muted-foreground mt-1">Hesabini baglayarak verilerini koru</p>
       </div>
 
-      {/* Stats summary */}
-      <div className="flex justify-center gap-6">
+      {/* Stats row */}
+      <div className="flex justify-center gap-4">
         {[
-          { label: 'Streak', value: '3 🔥' },
-          { label: 'XP', value: '1,240 ⚡' },
-          { label: 'Seans', value: '12' },
+          { label: 'STREAK', value: '3', icon: uiIcons.streakFire },
+          { label: 'XP', value: '1,240', icon: uiIcons.xpBolt },
+          { label: 'SEANS', value: '12', icon: uiIcons.target },
         ].map((s) => (
-          <div key={s.label} className="text-center">
-            <p className="font-display text-lg font-black text-foreground">{s.value}</p>
-            <p className="text-[10px] text-muted-foreground">{s.label}</p>
+          <div key={s.label} className="card-3d p-3 text-center flex-1">
+            <img src={s.icon} alt="" width={20} height={20} className="mx-auto mb-1.5 object-contain" loading="lazy" />
+            <p className="font-display text-lg font-bold text-foreground">{s.value}</p>
+            <p className="text-[9px] text-muted-foreground font-display">{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Menu */}
-      <div className="space-y-1">
-        {menuItems.map((item, i) => {
-          const Icon = item.icon;
-          return (
-            <motion.button
-              key={item.label}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: i * 0.03 }}
-              className="w-full glass-card p-3.5 flex items-center gap-3 text-left group hover:border-primary/20 transition-all"
-            >
-              <Icon size={18} className={item.color} />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{item.label}</p>
-                <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-              </div>
-              <ChevronRight size={16} className="text-muted-foreground" />
-            </motion.button>
-          );
-        })}
+      <div className="space-y-1.5">
+        {menuItems.map((item, i) => (
+          <motion.button
+            key={item.label}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: i * 0.03 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full card-3d p-4 flex items-center gap-3 text-left group transition-all"
+          >
+            <div className={`w-2 h-2 rounded-full ${item.color === 'text-destructive' ? 'bg-destructive' : 'bg-primary'}`}
+              style={{ boxShadow: '0 0 6px currentColor' }}
+            />
+            <div className="flex-1">
+              <p className={`text-sm font-display font-bold ${item.color}`}>{item.label}</p>
+              <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+            </div>
+            <div className="w-6 h-6 rounded card-3d-inset flex items-center justify-center">
+              <span className="text-muted-foreground text-[10px]">›</span>
+            </div>
+          </motion.button>
+        ))}
       </div>
 
-      <p className="text-center text-[10px] text-muted-foreground">FaceGym v1.0 • Basamak 1 MVP</p>
+      <p className="text-center text-[10px] text-muted-foreground font-display">FACEGYM v1.0 — BASAMAK 2</p>
     </div>
   );
 }
