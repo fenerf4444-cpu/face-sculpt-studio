@@ -121,7 +121,11 @@ export function useFaceDetection() {
 
             // Convert to our format
             const points = positions.map(p => ({ x: p.x, y: p.y }));
-            const faceMetrics = computeFaceMetrics(points, expressions);
+            const expressionObj: Record<string, number> = {};
+            for (const [key, val] of Object.entries(expressions)) {
+              expressionObj[key] = val as number;
+            }
+            const faceMetrics = computeFaceMetrics(points, expressionObj);
 
             setMetrics(faceMetrics);
 
