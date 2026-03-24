@@ -1,16 +1,18 @@
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { uiIcons } from '@/assets/iconMap';
 
 export function ProfileScreen() {
-  const menuItems = [
-    { label: 'Hesabi Bagla', desc: 'Google / Apple ile giris yap', color: 'text-secondary' },
-    { label: 'Premium', desc: 'Tum ozellikleri ac', color: 'text-neon-orange' },
-    { label: 'Bildirimler', desc: 'Hatirlatma saatlerini ayarla', color: 'text-neon-pink' },
-    { label: 'Ses & Ritim', desc: 'Muzik ve ses efektleri', color: 'text-neon-cyan' },
-    { label: 'Kamera Ayarlari', desc: 'Performans ve kalite', color: 'text-neon-green' },
-    { label: 'Gizlilik', desc: 'Veri yonetimi ve guvenlik', color: 'text-muted-foreground' },
-    { label: 'Hesap Sil', desc: 'Tum verileri kaldir', color: 'text-destructive' },
-  ];
+  const [username, setUsername] = useState('Anonim Kullanici');
+  const [editingName, setEditingName] = useState(false);
+  const [notificationsOn, setNotificationsOn] = useState(true);
+  const [soundOn, setSoundOn] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const toggleSection = (id: string) => {
+    setOpenSection(prev => prev === id ? null : id);
+  };
 
   return (
     <div className="p-4 pb-24 space-y-6">
@@ -19,8 +21,24 @@ export function ProfileScreen() {
         <div className="w-24 h-24 rounded-2xl card-3d-elevated mx-auto mb-4 flex items-center justify-center glow-red overflow-hidden">
           <img src={uiIcons.trophy} alt="Profil" width={52} height={52} className="object-contain float-3d" />
         </div>
-        <h1 className="font-display text-xl font-bold text-foreground">Anonim Kullanici</h1>
-        <p className="text-xs text-muted-foreground mt-1">Hesabini baglayarak verilerini koru</p>
+        {editingName ? (
+          <div className="flex items-center gap-2 justify-center">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="bg-transparent text-center font-display text-xl font-bold text-foreground border-b border-primary outline-none"
+              autoFocus
+              onBlur={() => setEditingName(false)}
+              onKeyDown={(e) => e.key === 'Enter' && setEditingName(false)}
+            />
+          </div>
+        ) : (
+          <button onClick={() => setEditingName(true)}>
+            <h1 className="font-display text-xl font-bold text-foreground">{username}</h1>
+            <p className="text-xs text-muted-foreground mt-1">Isme dokun ve degistir</p>
+          </button>
+        )}
       </div>
 
       {/* Stats row */}
@@ -38,32 +56,113 @@ export function ProfileScreen() {
         ))}
       </div>
 
-      {/* Menu */}
+      {/* Settings */}
       <div className="space-y-1.5">
-        {menuItems.map((item, i) => (
-          <motion.button
-            key={item.label}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: i * 0.03 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full card-3d p-4 flex items-center gap-3 text-left group transition-all"
-          >
-            <div className={`w-2 h-2 rounded-full ${item.color === 'text-destructive' ? 'bg-destructive' : 'bg-primary'}`}
-              style={{ boxShadow: '0 0 6px currentColor' }}
-            />
-            <div className="flex-1">
-              <p className={`text-sm font-display font-bold ${item.color}`}>{item.label}</p>
-              <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-            </div>
-            <div className="w-6 h-6 rounded card-3d-inset flex items-center justify-center">
-              <span className="text-muted-foreground text-[10px]">›</span>
-            </div>
-          </motion.button>
-        ))}
+        {/* Notifications */}
+        <button onClick={() => toggleSection('notifications')} className="w-full card-3d p-4 flex items-center gap-3 text-left">
+          <div className="w-2 h-2 rounded-full bg-neon-pink" style={{ boxShadow: '0 0 6px hsl(330 85% 58%)' }} />
+          <div className="flex-1">
+            <p className="text-sm font-display font-bold text-neon-pink">Bildirimler</p>
+            <p className="text-[10px] text-muted-foreground">Hatirlatma saatlerini ayarla</p>
+          </div>
+          <div className="w-6 h-6 rounded card-3d-inset flex items-center justify-center">
+            <span className="text-muted-foreground text-[10px]">{openSection === 'notifications' ? '−' : '›'}</span>
+          </div>
+        </button>
+        <AnimatePresence>
+          {openSection === 'notifications' && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+              <div className="card-3d-inset p-4 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Gunluk hatirlatma</span>
+                <button onClick={() => setNotificationsOn(!notificationsOn)}
+                  className={`w-12 h-6 rounded-full transition-all ${notificationsOn ? 'bg-secondary' : 'bg-muted'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-primary-foreground transition-transform ${notificationsOn ? 'translate-x-6' : 'translate-x-0.5'}`}
+                    style={{ boxShadow: '0 1px 3px hsl(0 0% 0% / 0.3)' }} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Sound */}
+        <button onClick={() => toggleSection('sound')} className="w-full card-3d p-4 flex items-center gap-3 text-left">
+          <div className="w-2 h-2 rounded-full bg-neon-cyan" style={{ boxShadow: '0 0 6px hsl(185 80% 50%)' }} />
+          <div className="flex-1">
+            <p className="text-sm font-display font-bold text-neon-cyan">Ses & Ritim</p>
+            <p className="text-[10px] text-muted-foreground">Muzik ve ses efektleri</p>
+          </div>
+          <div className="w-6 h-6 rounded card-3d-inset flex items-center justify-center">
+            <span className="text-muted-foreground text-[10px]">{openSection === 'sound' ? '−' : '›'}</span>
+          </div>
+        </button>
+        <AnimatePresence>
+          {openSection === 'sound' && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+              <div className="card-3d-inset p-4 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Ses efektleri</span>
+                <button onClick={() => setSoundOn(!soundOn)}
+                  className={`w-12 h-6 rounded-full transition-all ${soundOn ? 'bg-secondary' : 'bg-muted'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-primary-foreground transition-transform ${soundOn ? 'translate-x-6' : 'translate-x-0.5'}`}
+                    style={{ boxShadow: '0 1px 3px hsl(0 0% 0% / 0.3)' }} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Camera settings */}
+        <button onClick={() => toggleSection('camera')} className="w-full card-3d p-4 flex items-center gap-3 text-left">
+          <div className="w-2 h-2 rounded-full bg-neon-green" style={{ boxShadow: '0 0 6px hsl(160 75% 42%)' }} />
+          <div className="flex-1">
+            <p className="text-sm font-display font-bold text-neon-green">Kamera Ayarlari</p>
+            <p className="text-[10px] text-muted-foreground">Performans ve kalite</p>
+          </div>
+          <div className="w-6 h-6 rounded card-3d-inset flex items-center justify-center">
+            <span className="text-muted-foreground text-[10px]">{openSection === 'camera' ? '−' : '›'}</span>
+          </div>
+        </button>
+        <AnimatePresence>
+          {openSection === 'camera' && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+              <div className="card-3d-inset p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Algilama hizi</span>
+                  <span className="text-xs font-display text-foreground">~12 FPS</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Kamera cozunurluk</span>
+                  <span className="text-xs font-display text-foreground">640x480</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Privacy */}
+        <button onClick={() => toggleSection('privacy')} className="w-full card-3d p-4 flex items-center gap-3 text-left">
+          <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+          <div className="flex-1">
+            <p className="text-sm font-display font-bold text-muted-foreground">Gizlilik</p>
+            <p className="text-[10px] text-muted-foreground">Veri yonetimi ve guvenlik</p>
+          </div>
+          <div className="w-6 h-6 rounded card-3d-inset flex items-center justify-center">
+            <span className="text-muted-foreground text-[10px]">{openSection === 'privacy' ? '−' : '›'}</span>
+          </div>
+        </button>
+        <AnimatePresence>
+          {openSection === 'privacy' && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+              <div className="card-3d-inset p-4 space-y-2">
+                <p className="text-xs text-muted-foreground">Tum veriler yerel olarak cihazinda saklanir.</p>
+                <p className="text-xs text-muted-foreground">Kamera verileri islenip atilir, kaydedilmez.</p>
+                <p className="text-xs text-muted-foreground">Fotograflar sifrelenmis yerel depolamada tutulur.</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <p className="text-center text-[10px] text-muted-foreground font-display">FACEGYM v1.0 — BASAMAK 2</p>
+      <p className="text-center text-[10px] text-muted-foreground font-display">FACEGYM v1.0</p>
     </div>
   );
 }

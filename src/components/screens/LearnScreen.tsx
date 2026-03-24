@@ -19,6 +19,7 @@ export function LearnScreen() {
   const [selectedZone, setSelectedZone] = useState<ExerciseZone | 'all'>('all');
   const [selectedExercise, setSelectedExercise] = useState<ExerciseDefinition | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   const filtered = EXERCISES.filter(e => {
     if (selectedZone !== 'all' && e.zone !== selectedZone) return false;
@@ -26,11 +27,26 @@ export function LearnScreen() {
     return true;
   });
 
+  const toggleFavorite = (id: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   if (selectedExercise) {
     const iconSrc = exerciseIcons[selectedExercise.id];
+    const isFav = favorites.has(selectedExercise.id);
     return (
       <div className="p-4 pb-24 space-y-4">
-        <button onClick={() => setSelectedExercise(null)} className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display">← Geri</button>
+        <div className="flex items-center justify-between">
+          <button onClick={() => setSelectedExercise(null)} className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display">← Geri</button>
+          <button onClick={() => toggleFavorite(selectedExercise.id)} className={`card-3d px-3 py-1.5 text-xs font-display font-bold ${isFav ? 'text-neon-orange glow-orange' : 'text-muted-foreground'}`}>
+            {isFav ? 'FAVORILERDE' : 'FAVORIYE EKLE'}
+          </button>
+        </div>
         <div className="card-3d-elevated p-6 glow-red">
           <div className="text-center mb-6">
             {iconSrc && <img src={iconSrc} alt={selectedExercise.nameTr} width={80} height={80} className="mx-auto float-3d" />}
@@ -73,7 +89,6 @@ export function LearnScreen() {
               </div>
             </div>
           </div>
-          <button className="w-full mt-6 py-3.5 btn-3d-primary text-primary-foreground text-base">SIMDI DENE</button>
         </div>
       </div>
     );
@@ -96,6 +111,9 @@ export function LearnScreen() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-body"
         />
+        {searchQuery && (
+          <button onClick={() => setSearchQuery('')} className="text-xs text-muted-foreground hover:text-foreground">x</button>
+        )}
       </div>
 
       {/* Zone filter */}
@@ -113,8 +131,21 @@ export function LearnScreen() {
         ))}
       </div>
 
+      {/* Favorites section */}
+      {favorites.size > 0 && selectedZone === 'all' && !searchQuery && (
+        <div>
+          <h2 className="font-display text-sm font-bold text-neon-orange mb-2">FAVORILER</h2>
+          <div className="space-y-2">
+            {EXERCISES.filter(e => favorites.has(e.id)).map(ex => (
+              <ExerciseCard key={ex.id} exercise={ex} onClick={() => setSelectedExercise(ex)} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Exercise list */}
       <div className="space-y-2.5">
+        <h2 className="font-display text-sm font-bold text-foreground">{filtered.length} HAREKET</h2>
         {filtered.map((ex, i) => (
           <motion.div key={ex.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
             <ExerciseCard exercise={ex} onClick={() => setSelectedExercise(ex)} />
