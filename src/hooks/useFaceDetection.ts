@@ -1,9 +1,23 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import * as faceapi from 'face-api.js';
 import { FaceMetrics, computeFaceMetrics, estimateLightLevel } from '@/lib/face-detection';
 import { CompatibilityState, FaceStatus, LightStatus, CameraStatus, TrackingConfidence } from '@/types/exercises';
 
-// We use a canvas-based approach. In production, integrate face-api.js or MediaPipe.
-// This hook provides the interface; actual detection logic is pluggable.
+let modelsLoaded = false;
+let modelsLoading = false;
+
+async function loadModels() {
+  if (modelsLoaded || modelsLoading) return;
+  modelsLoading = true;
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model';
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+    faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+    faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+  ]);
+  modelsLoaded = true;
+  modelsLoading = false;
+}
 
 export function useFaceDetection() {
   const [metrics, setMetrics] = useState<FaceMetrics | null>(null);
@@ -15,9 +29,10 @@ export function useFaceDetection() {
     allReady: false,
   });
   const [isDetecting, setIsDetecting] = useState(false);
+  const [modelsReady, setModelsReady] = useState(modelsLoaded);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const animFrameRef = useRef<number>(0);
-  const landmarksRef = useRef<{ x: number; y: number }[]>([]);
+  const detectingRef = useRef(false);
 
   const updateCompatibility = useCallback((updates: Partial<CompatibilityState>) => {
     setCompatibility(prev => {
@@ -25,6 +40,11 @@ export function useFaceDetection() {
       next.allReady = next.camera === 'ready' && next.light === 'good' && next.face === 'detected' && (next.tracking === 'high' || next.tracking === 'medium');
       return next;
     });
+  }, []);
+
+  // Pre-load models on mount
+  useEffect(() => {
+    loadModels().then(() => setModelsReady(true));
   }, []);
 
   const startCamera = useCallback(async () => {
@@ -52,6 +72,7 @@ export function useFaceDetection() {
   }, [updateCompatibility]);
 
   const stopCamera = useCallback(() => {
+    detectingRef.current = false;
     if (videoRef.current?.srcObject) {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
       videoRef.current.srcObject = null;
@@ -60,78 +81,88 @@ export function useFaceDetection() {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
   }, []);
 
-  // Simulated face detection loop (in production, replace with face-api.js / MediaPipe)
   const startDetection = useCallback(() => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !modelsReady) return;
+    detectingRef.current = true;
     setIsDetecting(true);
 
-    const detect = () => {
-      if (!videoRef.current || videoRef.current.readyState < 2) {
-        animFrameRef.current = requestAnimationFrame(detect);
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
+
+    let lastDetectTime = 0;
+    const DETECT_INTERVAL = 80; // ~12fps detection for performance
+
+    const detect = async (timestamp: number) => {
+      if (!detectingRef.current || !videoRef.current || videoRef.current.readyState < 2) {
+        if (detectingRef.current) animFrameRef.current = requestAnimationFrame(detect);
         return;
       }
 
-      // Light check
+      // Light check (cheap, every frame)
       const lightLevel = estimateLightLevel(videoRef.current);
       let lightStatus: LightStatus = 'good';
       if (lightLevel < 0.15) lightStatus = 'too-dark';
       else if (lightLevel < 0.3) lightStatus = 'low';
       updateCompatibility({ light: lightStatus });
 
-      // Simulate face detection with synthetic landmarks
-      // In production: use face-api.js detectSingleFace().withFaceLandmarks()
-      const hasFace = lightLevel > 0.15;
-      if (hasFace) {
-        // Generate synthetic 68 landmarks for demo
-        const w = videoRef.current.videoWidth || 640;
-        const h = videoRef.current.videoHeight || 480;
-        const cx = w / 2, cy = h / 2;
-        const faceW = w * 0.4, faceH = h * 0.5;
+      // Face detection (throttled)
+      if (timestamp - lastDetectTime >= DETECT_INTERVAL) {
+        lastDetectTime = timestamp;
 
-        const syntheticLandmarks: { x: number; y: number }[] = [];
-        // Jaw: 0-16
-        for (let i = 0; i <= 16; i++) {
-          const angle = Math.PI * 0.15 + (Math.PI * 0.7 * i / 16);
-          syntheticLandmarks.push({
-            x: cx + Math.cos(angle) * faceW / 2,
-            y: cy + Math.sin(angle) * faceH / 2 * 0.8,
-          });
-        }
-        // Brows, nose, eyes, mouth approximations to reach 68 points
-        for (let i = 17; i < 68; i++) {
-          const row = Math.floor((i - 17) / 10);
-          const col = (i - 17) % 10;
-          syntheticLandmarks.push({
-            x: cx - faceW * 0.3 + col * (faceW * 0.06) + (Math.random() - 0.5) * 4,
-            y: cy - faceH * 0.3 + row * (faceH * 0.1) + (Math.random() - 0.5) * 4,
-          });
-        }
+        try {
+          const result = await faceapi
+            .detectSingleFace(videoRef.current, options)
+            .withFaceLandmarks(true)
+            .withFaceExpressions();
 
-        landmarksRef.current = syntheticLandmarks;
-        const faceMetrics = computeFaceMetrics(syntheticLandmarks);
-        setMetrics(faceMetrics);
-        updateCompatibility({
-          face: 'detected' as FaceStatus,
-          tracking: 'high' as TrackingConfidence,
-        });
-      } else {
-        setMetrics(null);
-        updateCompatibility({
-          face: 'not-found' as FaceStatus,
-          tracking: 'none' as TrackingConfidence,
-        });
+          if (result) {
+            const landmarks = result.landmarks;
+            const positions = landmarks.positions;
+            const expressions = result.expressions;
+
+            // Convert to our format
+            const points = positions.map(p => ({ x: p.x, y: p.y }));
+            const expressionObj: Record<string, number> = {};
+            for (const [key, val] of Object.entries(expressions)) {
+              expressionObj[key] = val as number;
+            }
+            const faceMetrics = computeFaceMetrics(points, expressionObj);
+
+            setMetrics(faceMetrics);
+
+            // Face distance check
+            const box = result.detection.box;
+            const videoWidth = videoRef.current.videoWidth || 640;
+            const faceRatio = box.width / videoWidth;
+
+            let faceStatus: FaceStatus = 'detected';
+            if (faceRatio > 0.7) faceStatus = 'too-close';
+            else if (faceRatio < 0.15) faceStatus = 'too-far';
+
+            const score = result.detection.score;
+            let tracking: TrackingConfidence = 'high';
+            if (score < 0.5) tracking = 'low';
+            else if (score < 0.7) tracking = 'medium';
+
+            updateCompatibility({ face: faceStatus, tracking });
+          } else {
+            setMetrics(null);
+            updateCompatibility({ face: 'not-found' as FaceStatus, tracking: 'none' as TrackingConfidence });
+          }
+        } catch {
+          // Detection error, skip frame
+        }
       }
 
-      animFrameRef.current = requestAnimationFrame(detect);
+      if (detectingRef.current) {
+        animFrameRef.current = requestAnimationFrame(detect);
+      }
     };
 
-    detect();
-  }, [updateCompatibility]);
+    animFrameRef.current = requestAnimationFrame(detect);
+  }, [modelsReady, updateCompatibility]);
 
   useEffect(() => {
-    return () => {
-      stopCamera();
-    };
+    return () => { stopCamera(); };
   }, [stopCamera]);
 
   return {
@@ -139,6 +170,7 @@ export function useFaceDetection() {
     metrics,
     compatibility,
     isDetecting,
+    modelsReady,
     startCamera,
     stopCamera,
     startDetection,

@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { EvaluatorResult } from '@/types/exercises';
-import { exerciseIcons } from '@/assets/iconMap';
-import { uiIcons } from '@/assets/iconMap';
+import { exerciseIcons, uiIcons } from '@/assets/iconMap';
 
 interface TrainingHUDProps {
   exerciseName: string;
@@ -62,7 +61,23 @@ export function TrainingHUD({
           </div>
         </div>
 
-        {/* 3D Progress bar */}
+        {/* Accuracy bar */}
+        {evaluation && (
+          <div className="card-3d-inset p-1 rounded-full mb-2">
+            <div className="h-1.5 rounded-full overflow-hidden bg-transparent">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-secondary to-green-400"
+                animate={{ width: `${Math.round(evaluation.accuracyScore * 100)}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <p className="text-[9px] text-muted-foreground font-display text-center mt-0.5">
+              Dogruluk: %{Math.round(evaluation.accuracyScore * 100)}
+            </p>
+          </div>
+        )}
+
+        {/* Progress bar */}
         <div className="card-3d-inset p-1 rounded-full">
           <div className="h-2 rounded-full overflow-hidden bg-transparent">
             <motion.div
@@ -74,15 +89,16 @@ export function TrainingHUD({
           </div>
         </div>
 
-        {/* Timer */}
+        {/* Timer + Set info */}
         <div className="flex items-center justify-between mt-3">
           <span className="text-xs text-muted-foreground font-display">
-            TEKRAR {rep}/{totalReps}
+            SET {rep}/{totalReps}
           </span>
-          <div className={`card-3d-elevated px-4 py-2 ${timeLeft <= 3 ? 'glow-red beat-pulse' : ''}`}>
+          <div className={`card-3d-elevated px-4 py-2 ${timeLeft <= 5 ? 'glow-red beat-pulse' : ''}`}>
             <span className="font-display text-3xl font-bold text-foreground">
               {Math.ceil(timeLeft)}
             </span>
+            <span className="text-xs text-muted-foreground ml-1">sn</span>
           </div>
         </div>
       </div>

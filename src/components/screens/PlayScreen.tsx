@@ -17,7 +17,7 @@ export function PlayScreen() {
   const [selectedMode, setSelectedMode] = useState<GameMode>('quick-play');
   const [activeExercises, setActiveExercises] = useState<ExerciseDefinition[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [currentRep, setCurrentRep] = useState(1);
+  const [currentSet, setCurrentSet] = useState(1);
   const [timeLeft, setTimeLeft] = useState(0);
   const [holdTime, setHoldTime] = useState(0);
   const [evaluation, setEvaluation] = useState<EvaluatorResult | null>(null);
@@ -27,14 +27,17 @@ export function PlayScreen() {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [sessionScore, setSessionScore] = useState<SessionScore | null>(null);
   const [dailyQuest] = useState({ target: 3, completed: 1 });
+  const [isResting, setIsResting] = useState(false);
+  const [restTimeLeft, setRestTimeLeft] = useState(0);
 
-  const { videoRef, compatibility, startCamera, stopCamera, startDetection } = useFaceDetection();
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { videoRef, metrics, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionAccuracies = useRef<number[]>([]);
 
   const modes = [
-    { id: 'quick-play' as GameMode, name: 'Hizli Oyun', desc: '5 hareket, hizli seans', icon: uiIcons.gamepad, exercises: QUICK_PLAY_EXERCISES, glow: 'glow-red' },
-    { id: 'guided-training' as GameMode, name: 'Rehberli Antrenman', desc: 'Tum hareketler, detayli yonlendirme', icon: uiIcons.target, exercises: EXERCISES, glow: 'glow-green' },
-    { id: 'gymfiesta' as GameMode, name: 'GymFiesta Challenge', desc: '4 aksiyonlu yogun challenge', icon: uiIcons.streakFire, exercises: GYMFIESTA_EXERCISES, glow: 'glow-orange' },
+    { id: 'quick-play' as GameMode, name: 'Hizli Oyun', desc: '5 hareket, 3 set x 30 sn', icon: uiIcons.gamepad, exercises: QUICK_PLAY_EXERCISES, glow: 'glow-red' },
+    { id: 'guided-training' as GameMode, name: 'Rehberli Antrenman', desc: 'Tum hareketler, 3 set x 30 sn', icon: uiIcons.target, exercises: EXERCISES, glow: 'glow-green' },
+    { id: 'gymfiesta' as GameMode, name: 'GymFiesta Challenge', desc: '4 aksiyon, yogun challenge', icon: uiIcons.streakFire, exercises: GYMFIESTA_EXERCISES, glow: 'glow-orange' },
   ];
 
   const startMode = useCallback(async (mode: GameMode) => {
@@ -44,10 +47,11 @@ export function PlayScreen() {
     setActiveExercises(modeConfig.exercises);
     setPhase('preparing');
     setCurrentIdx(0);
-    setCurrentRep(1);
+    setCurrentSet(1);
     setCombo(0);
     setXp(0);
     setCompletedIds(new Set());
+    sessionAccuracies.current = [];
     await startCamera();
     startDetection();
   }, [startCamera, startDetection]);
@@ -56,65 +60,114 @@ export function PlayScreen() {
     if (!compatibility.allReady) return;
     setPhase('training');
     const ex = activeExercises[0];
-    if (ex) { setTimeLeft(ex.holdDurationSec); setHoldTime(0); }
+    if (ex) {
+      setTimeLeft(ex.holdDurationSec);
+      setHoldTime(0);
+      setIsResting(false);
+    }
   }, [compatibility.allReady, activeExercises]);
 
+  // Main training loop using REAL face metrics
   useEffect(() => {
     if (phase !== 'training' || isPaused || activeExercises.length === 0) return;
+
+    // Handle rest period between sets
+    if (isResting) {
+      timerRef.current = setInterval(() => {
+        setRestTimeLeft(prev => {
+          if (prev <= 0.1) {
+            setIsResting(false);
+            const ex = activeExercises[currentIdx];
+            setTimeLeft(ex.holdDurationSec);
+            setHoldTime(0);
+            return 0;
+          }
+          return prev - 0.1;
+        });
+      }, 100);
+      return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }
+
     const ex = activeExercises[currentIdx];
     if (!ex) return;
 
     timerRef.current = setInterval(() => {
+      // Evaluate with REAL metrics from face-api.js
+      if (metrics) {
+        const evaluator = EVALUATOR_MAP[ex.id];
+        if (evaluator) {
+          const result = evaluator(metrics, holdTime);
+          setEvaluation(result);
+
+          // Only count hold time when pose is detected
+          if (result.isDetected) {
+            setHoldTime(h => h + 0.1);
+          }
+        }
+      }
+
       setTimeLeft(prev => {
         if (prev <= 0.1) {
-          const completed = currentRep >= ex.reps;
-          if (completed) {
+          // Set completed
+          const accuracy = evaluation?.accuracyScore || 0;
+          sessionAccuracies.current.push(accuracy);
+          setXp(p => p + Math.round(accuracy * 30));
+
+          if (currentSet >= ex.reps) {
+            // All sets done for this exercise
             setCompletedIds(p => new Set(p).add(ex.id));
             setCombo(p => p + 1);
-            setXp(p => p + Math.round((evaluation?.accuracyScore || 0.5) * 50));
+            setXp(p => p + 25); // completion bonus
+
             const nextIdx = currentIdx + 1;
             if (nextIdx >= activeExercises.length) {
+              // Session complete
               clearInterval(timerRef.current!);
+              const avgAccuracy = sessionAccuracies.current.length > 0
+                ? sessionAccuracies.current.reduce((a, b) => a + b, 0) / sessionAccuracies.current.length
+                : 0.5;
               setSessionScore({
-                totalScore: xp + Math.round((evaluation?.accuracyScore || 0.5) * 100),
-                xp: xp + 50, accuracy: (evaluation?.accuracyScore || 0.5) * 100,
-                holdScore: 75, symmetryScore: 80, rhythmScore: 70,
-                consistencyBonus: combo > 3 ? 20 : 0, comboBonus: combo * 5, streakBonus: 10,
+                totalScore: xp + Math.round(avgAccuracy * 100),
+                xp: xp + 50,
+                accuracy: avgAccuracy * 100,
+                holdScore: 75,
+                symmetryScore: 80,
+                rhythmScore: 70,
+                consistencyBonus: combo > 3 ? 20 : 0,
+                comboBonus: combo * 5,
+                streakBonus: 10,
               });
               setPhase('summary');
               return 0;
             }
-            setCurrentIdx(nextIdx); setCurrentRep(1); setHoldTime(0);
-            return activeExercises[nextIdx].holdDurationSec;
+
+            // Move to next exercise after rest
+            setCurrentIdx(nextIdx);
+            setCurrentSet(1);
+            setHoldTime(0);
+            setIsResting(true);
+            setRestTimeLeft(5); // 5 second rest between exercises
+            return 0;
           } else {
-            setCurrentRep(p => p + 1); setHoldTime(0);
-            return ex.holdDurationSec;
+            // Next set of same exercise after short rest
+            setCurrentSet(s => s + 1);
+            setHoldTime(0);
+            setIsResting(true);
+            setRestTimeLeft(3); // 3 second rest between sets
+            return 0;
           }
         }
-        setHoldTime(h => h + 0.1);
         return prev - 0.1;
       });
-
-      const evaluator = EVALUATOR_MAP[ex.id];
-      if (evaluator) {
-        const dm = {
-          mouthOpenness: 0.3 + Math.random() * 0.5, mouthWidth: 0.3 + Math.random() * 0.2,
-          smileScore: 0.4 + Math.random() * 0.4, leftEyeOpenness: 0.5 + Math.random() * 0.3,
-          rightEyeOpenness: 0.5 + Math.random() * 0.3, browRaiseLeft: 0.3 + Math.random() * 0.4,
-          browRaiseRight: 0.3 + Math.random() * 0.4, headPitch: (Math.random() - 0.5) * 0.4,
-          headYaw: (Math.random() - 0.5) * 0.3, headRoll: 0, lipProtrusion: 0.2 + Math.random() * 0.5,
-          cheekPuffEstimate: 0.2 + Math.random() * 0.4, jawForward: Math.random() * 0.3,
-          faceWidth: 200, faceHeight: 250, symmetryScore: 0.8 + Math.random() * 0.2,
-        };
-        setEvaluation(evaluator(dm, holdTime));
-      }
     }, 100);
 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [phase, isPaused, currentIdx, currentRep, activeExercises, holdTime, combo, xp, evaluation?.accuracyScore]);
+  }, [phase, isPaused, currentIdx, currentSet, activeExercises, metrics, holdTime, combo, xp, evaluation?.accuracyScore, isResting]);
 
   const endSession = useCallback(() => {
-    stopCamera(); setPhase('menu'); setSessionScore(null);
+    stopCamera();
+    setPhase('menu');
+    setSessionScore(null);
     if (timerRef.current) clearInterval(timerRef.current);
   }, [stopCamera]);
 
@@ -132,8 +185,36 @@ export function PlayScreen() {
             background: 'linear-gradient(to top, hsl(240 10% 4% / 0.8) 0%, transparent 40%, hsl(240 10% 4% / 0.6) 100%)'
           }} />
         </div>
-        <TrainingHUD exerciseName={ex?.nameTr || ''} exerciseId={ex?.id || ''} timeLeft={timeLeft} totalTime={ex?.holdDurationSec || 8} rep={currentRep} totalReps={ex?.reps || 3} evaluation={evaluation} combo={combo} xp={xp} isPaused={isPaused} />
-        
+
+        {isResting ? (
+          <div className="absolute inset-0 z-30 flex items-center justify-center">
+            <div className="text-center card-3d-elevated p-8 glow-green">
+              <p className="font-display text-lg text-muted-foreground mb-2">DINLENME</p>
+              <p className="font-display text-5xl font-bold text-foreground">{Math.ceil(restTimeLeft)}</p>
+              <p className="text-sm text-muted-foreground mt-3">
+                {currentSet < (ex?.reps || 3)
+                  ? `Sonraki set: ${currentSet + 1}/${ex?.reps || 3}`
+                  : `Sonraki hareket: ${activeExercises[currentIdx + 1]?.nameTr || ''}`
+                }
+              </p>
+            </div>
+          </div>
+        ) : (
+          <TrainingHUD
+            exerciseName={ex?.nameTr || ''}
+            exerciseId={ex?.id || ''}
+            timeLeft={timeLeft}
+            totalTime={ex?.holdDurationSec || 30}
+            rep={currentSet}
+            totalReps={ex?.reps || 3}
+            evaluation={evaluation}
+            combo={combo}
+            xp={xp}
+            isPaused={isPaused}
+          />
+        )}
+
+        {/* Exercise sidebar */}
         <div className="absolute right-2 top-36 bottom-28 z-10 w-[60px] flex flex-col gap-2 overflow-y-auto">
           {activeExercises.map((e, i) => {
             const ic = exerciseIcons[e.id];
@@ -144,6 +225,18 @@ export function PlayScreen() {
             );
           })}
         </div>
+
+        {/* Real-time metrics debug (small) */}
+        {metrics && !isResting && (
+          <div className="absolute left-2 bottom-20 z-10 card-3d-inset p-2 text-[9px] font-mono text-muted-foreground space-y-0.5 opacity-60">
+            <div>Agiz: {(metrics.mouthOpenness * 100).toFixed(0)}%</div>
+            <div>Gulus: {(metrics.smileScore * 100).toFixed(0)}%</div>
+            <div>L.Goz: {(metrics.leftEyeOpenness * 100).toFixed(0)}%</div>
+            <div>R.Goz: {(metrics.rightEyeOpenness * 100).toFixed(0)}%</div>
+            <div>Kas: {(((metrics.browRaiseLeft + metrics.browRaiseRight) / 2) * 100).toFixed(0)}%</div>
+            <div>Simetri: {(metrics.symmetryScore * 100).toFixed(0)}%</div>
+          </div>
+        )}
 
         <div className="absolute bottom-4 inset-x-4 z-10 flex gap-3">
           <button onClick={() => setIsPaused(!isPaused)} className="flex-1 card-3d-elevated py-3 font-display text-sm font-bold text-foreground active:scale-95 transition-transform">
@@ -163,11 +256,31 @@ export function PlayScreen() {
         </div>
         <div className="relative z-10 flex flex-col items-center justify-center h-full p-6">
           <h2 className="font-display text-2xl font-bold text-foreground mb-6">HAZIRLIK KONTROLU</h2>
+
+          {!modelsReady && (
+            <div className="card-3d-elevated px-6 py-3 mb-4 glow-orange">
+              <p className="text-sm font-display text-neon-orange">Yuz algilama modeli yukleniyor...</p>
+            </div>
+          )}
+
           <div className="w-full max-w-sm mb-8">
             <CompatibilityCheck state={compatibility} />
           </div>
+
+          <p className="text-xs text-muted-foreground mb-4 text-center max-w-xs">
+            Her hareket 3 set x 30 saniye surer. Setler arasi 3 sn, hareketler arasi 5 sn dinlenme.
+          </p>
+
           {compatibility.allReady ? (
-            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.95 }} onClick={startTraining} className="w-52 py-4 btn-3d-primary text-lg text-primary-foreground glow-red">BASLA!</motion.button>
+            <motion.button
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={startTraining}
+              className="w-52 py-4 btn-3d-primary text-lg text-primary-foreground glow-red"
+            >
+              BASLA!
+            </motion.button>
           ) : (
             <p className="text-muted-foreground text-sm">Tum kontroller tamamlanana kadar bekle...</p>
           )}
@@ -180,13 +293,11 @@ export function PlayScreen() {
   // Menu
   return (
     <div className="p-4 pb-24 space-y-6">
-      {/* Header */}
       <div className="text-center pt-6">
         <h1 className="font-display text-4xl font-bold text-gradient-primary tracking-tight">OYNA</h1>
         <p className="text-muted-foreground text-sm mt-1">Kamerani ac, antrenmanina basla</p>
       </div>
 
-      {/* Daily Quest Card */}
       <div className="card-3d-elevated p-4 glow-red shimmer">
         <div className="flex items-center gap-3">
           <img src={uiIcons.streakFire} alt="Streak" width={40} height={40} className="float-3d" />
@@ -203,7 +314,6 @@ export function PlayScreen() {
         </div>
       </div>
 
-      {/* Mode cards */}
       <div className="space-y-3">
         {modes.map((mode, i) => (
           <motion.button
@@ -223,7 +333,7 @@ export function PlayScreen() {
               <h3 className="font-display text-lg font-bold text-foreground">{mode.name}</h3>
               <p className="text-xs text-muted-foreground">{mode.desc}</p>
               <div className="card-3d-inset inline-block px-2 py-0.5 mt-1.5 rounded-lg">
-                <span className="text-[10px] font-display text-muted-foreground">{mode.exercises.length} hareket</span>
+                <span className="text-[10px] font-display text-muted-foreground">{mode.exercises.length} hareket x 3 set</span>
               </div>
             </div>
             <div className="w-8 h-8 rounded-lg card-3d flex items-center justify-center">
@@ -233,7 +343,6 @@ export function PlayScreen() {
         ))}
       </div>
 
-      {/* Exercise list */}
       <div>
         <h2 className="font-display text-lg font-bold text-foreground mb-3">HAREKETLER</h2>
         <div className="space-y-2.5">
