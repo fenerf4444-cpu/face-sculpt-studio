@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { uiIcons } from '@/assets/iconMap';
 
 interface SavedPhoto {
@@ -7,30 +7,52 @@ interface SavedPhoto {
   dataUrl: string;
   date: string;
   label: string;
+  isBaseline: boolean;
+}
+
+const STORAGE_KEY = 'facegym-photos';
+
+function loadPhotos(): SavedPhoto[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function savePhotos(photos: SavedPhoto[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(photos)); } catch {}
 }
 
 export function PhotoScreen() {
-  const [photos, setPhotos] = useState<SavedPhoto[]>([]);
+  const [photos, setPhotos] = useState<SavedPhoto[]>(loadPhotos);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIdx, setCompareIdx] = useState<[number, number]>([0, 1]);
   const [sliderPos, setSliderPos] = useState(50);
+  const [cameraReady, setCameraReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  useEffect(() => { savePhotos(photos); }, [photos]);
+
   const openCamera = useCallback(async () => {
+    setIsCameraOpen(true);
+    setCameraReady(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+        video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 960 } }
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setIsCameraOpen(true);
+      // Wait for ref to be ready after render
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().then(() => setCameraReady(true)).catch(() => {});
+        }
+      }, 100);
     } catch {
       alert('Kamera erisimi reddedildi.');
+      setIsCameraOpen(false);
     }
   }, []);
 
@@ -40,41 +62,53 @@ export function PhotoScreen() {
       streamRef.current = null;
     }
     setIsCameraOpen(false);
+    setCameraReady(false);
   }, []);
 
   const capturePhoto = useCallback(() => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
+    canvas.width = videoRef.current.videoWidth || 720;
+    canvas.height = videoRef.current.videoHeight || 960;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(videoRef.current, 0, 0);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const isFirst = photos.length === 0;
     const newPhoto: SavedPhoto = {
       id: Date.now().toString(),
       dataUrl,
       date: new Date().toLocaleDateString('tr-TR'),
-      label: `Foto ${photos.length + 1}`,
+      label: isFirst ? 'Baz Foto' : `Foto ${photos.length + 1}`,
+      isBaseline: isFirst,
     };
-    setPhotos(prev => [newPhoto, ...prev]);
+    setPhotos(prev => [...prev, newPhoto]);
     closeCamera();
   }, [photos.length, closeCamera]);
 
   const deletePhoto = useCallback((id: string) => {
-    setPhotos(prev => prev.filter(p => p.id !== id));
+    setPhotos(prev => {
+      const photo = prev.find(p => p.id === id);
+      if (photo?.isBaseline) return prev; // Can't delete baseline
+      return prev.filter(p => p.id !== id);
+    });
   }, []);
 
   if (isCameraOpen) {
     return (
       <div className="relative h-[calc(100vh-4rem)] bg-background">
         <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
-        {/* Guide overlay */}
+        {/* Face guide overlay */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-56 h-72 border-2 border-dashed rounded-[40%] opacity-40" style={{ borderColor: 'hsl(160 75% 42%)' }} />
+          <div className="w-48 h-64 border-2 border-dashed rounded-[40%] opacity-30" style={{ borderColor: 'hsl(160 75% 42%)' }} />
         </div>
+        {!cameraReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+            <p className="font-display text-sm text-muted-foreground">Kamera yukleniyor...</p>
+          </div>
+        )}
         <div className="absolute top-4 inset-x-4 z-10">
           <div className="card-3d-elevated px-4 py-2 text-center">
             <p className="text-xs font-display text-muted-foreground">Yuzunu cerceve icine hizala, duz bak</p>
@@ -82,7 +116,8 @@ export function PhotoScreen() {
         </div>
         <div className="absolute bottom-6 inset-x-4 z-10 flex gap-3">
           <button onClick={closeCamera} className="card-3d-elevated px-5 py-3 font-display text-sm font-bold text-muted-foreground">IPTAL</button>
-          <button onClick={capturePhoto} className="flex-1 py-4 btn-3d-primary text-primary-foreground text-base font-display font-bold">CEK</button>
+          <button onClick={capturePhoto} disabled={!cameraReady}
+            className="flex-1 py-4 btn-3d-primary text-primary-foreground text-base font-display font-bold disabled:opacity-50">CEK</button>
         </div>
       </div>
     );
@@ -91,11 +126,11 @@ export function PhotoScreen() {
   if (compareMode && photos.length >= 2) {
     const left = photos[compareIdx[0]];
     const right = photos[compareIdx[1]];
+    if (!left || !right) { setCompareMode(false); return null; }
     return (
       <div className="p-4 pb-24 space-y-4">
         <button onClick={() => setCompareMode(false)} className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display">← Geri</button>
         <h2 className="font-display text-xl font-bold text-foreground text-center">KARSILASTIR</h2>
-
         <div className="relative card-3d-elevated overflow-hidden rounded-2xl" style={{ height: 350 }}>
           <img src={right.dataUrl} alt="Sonra" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}>
@@ -104,26 +139,18 @@ export function PhotoScreen() {
           <div className="absolute top-0 bottom-0" style={{ left: `${sliderPos}%`, transform: 'translateX(-50%)' }}>
             <div className="w-0.5 h-full bg-primary" style={{ boxShadow: '0 0 8px hsl(350 85% 55% / 0.5)' }} />
             <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full btn-3d-primary flex items-center justify-center">
-              <span className="text-xs text-primary-foreground font-bold">↔</span>
+              <span className="text-xs text-primary-foreground font-bold">‹›</span>
             </div>
           </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={sliderPos}
-            onChange={(e) => setSliderPos(Number(e.target.value))}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-10"
-          />
+          <input type="range" min={0} max={100} value={sliderPos} onChange={(e) => setSliderPos(Number(e.target.value))}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-10" />
           <div className="absolute top-3 left-3 card-3d-inset px-2 py-1">
-            <span className="text-[10px] font-display text-muted-foreground">{left.date}</span>
+            <span className="text-[10px] font-display text-muted-foreground">ONCE {left.date}</span>
           </div>
           <div className="absolute top-3 right-3 card-3d-inset px-2 py-1">
-            <span className="text-[10px] font-display text-muted-foreground">{right.date}</span>
+            <span className="text-[10px] font-display text-muted-foreground">SONRA {right.date}</span>
           </div>
         </div>
-
-        {/* Photo selector */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-[10px] font-display text-muted-foreground mb-1">ONCE</p>
@@ -156,10 +183,9 @@ export function PhotoScreen() {
     <div className="p-4 pb-24 space-y-6">
       <div className="text-center pt-6">
         <h1 className="font-display text-4xl font-bold text-gradient-primary tracking-tight">FOTO KIYAS</h1>
-        <p className="text-muted-foreground text-sm mt-1">Haftalik ilerleme karsilastirmasi</p>
+        <p className="text-muted-foreground text-sm mt-1">Ilerleme karsilastirmasi</p>
       </div>
 
-      {/* Take photo */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card-3d-elevated p-8 text-center glow-red">
         <div className="relative inline-block mb-5">
           <img src={uiIcons.camera} alt="Kamera" width={72} height={72} className="float-3d" />
@@ -169,20 +195,19 @@ export function PhotoScreen() {
         </h3>
         <p className="text-xs text-muted-foreground mb-5 leading-relaxed max-w-xs mx-auto">
           {photos.length === 0
-            ? 'Ilk fotografini cekerek karsilastirma surecini baslat.'
+            ? 'Ilk fotografini cekerek karsilastirma surecini baslat. Bu foto silinmez.'
             : `${photos.length} fotograf kayitli. Yeni bir fotograf ekle.`}
         </p>
         <button onClick={openCamera} className="px-8 py-3 btn-3d-primary text-primary-foreground text-sm">FOTOGRAF CEK</button>
       </motion.div>
 
-      {/* Compare button */}
       {photos.length >= 2 && (
-        <button onClick={() => setCompareMode(true)} className="w-full py-3 btn-3d-success text-secondary-foreground text-sm font-display font-bold">
+        <button onClick={() => { setCompareIdx([0, photos.length - 1]); setCompareMode(true); }}
+          className="w-full py-3 btn-3d-success text-secondary-foreground text-sm font-display font-bold">
           KARSILASTIR ({photos.length} foto)
         </button>
       )}
 
-      {/* Photo gallery */}
       {photos.length > 0 && (
         <div className="card-3d p-4">
           <h3 className="font-display text-sm font-bold text-foreground mb-3">KAYITLI FOTOGRAFLAR</h3>
@@ -192,28 +217,25 @@ export function PhotoScreen() {
                 <img src={photo.dataUrl} alt={photo.label} className="w-full h-full object-cover" />
                 <div className="absolute bottom-0 inset-x-0 p-1.5" style={{ background: 'linear-gradient(transparent, hsl(0 0% 0% / 0.7))' }}>
                   <p className="text-[9px] text-primary-foreground font-display">{photo.date}</p>
+                  {photo.isBaseline && <p className="text-[8px] text-secondary font-display font-bold">BAZ</p>}
                 </div>
-                <button
-                  onClick={() => deletePhoto(photo.id)}
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive flex items-center justify-center text-[10px] text-primary-foreground"
-                >
-                  x
-                </button>
+                {!photo.isBaseline && (
+                  <button onClick={() => deletePhoto(photo.id)}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive flex items-center justify-center text-[10px] text-primary-foreground">x</button>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* How it works */}
       <div className="card-3d p-5">
         <h3 className="font-display text-sm font-bold text-foreground mb-4">NASIL CALISIR</h3>
         <div className="space-y-4">
           {[
-            { step: '1', text: 'Ilk gun baz fotografini cek' },
+            { step: '1', text: 'Ilk gun baz fotografini cek (silinmez)' },
             { step: '2', text: 'Haftalik ayni acida tekrar cek' },
             { step: '3', text: 'Slider ile karsilastir' },
-            { step: '4', text: 'Tutarlilik skorunu takip et' },
           ].map((item, i) => (
             <motion.div key={item.step} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }} className="flex items-center gap-4">
               <div className="w-9 h-9 rounded-xl btn-3d-primary flex items-center justify-center shrink-0">
@@ -223,12 +245,6 @@ export function PhotoScreen() {
             </motion.div>
           ))}
         </div>
-      </div>
-
-      <div className="card-3d-inset p-3">
-        <p className="text-[10px] text-muted-foreground text-center font-display">
-          FOTOGRAFLAR CIHAZINDA YEREL OLARAK SAKLANIR. BULUT SENKRON ISTEGE BAGLIDIR.
-        </p>
       </div>
     </div>
   );
