@@ -10,12 +10,12 @@ import wink from '@/assets/icons/wink.png';
 import lipProtrusion from '@/assets/icons/lip-protrusion.png';
 import streakFire from '@/assets/icons/streak-fire.png';
 import xpBolt from '@/assets/icons/xp-bolt.png';
-import trophy from '@/assets/icons/trophy.png';
-import target from '@/assets/icons/target.png';
-import camera from '@/assets/icons/camera.png';
-import gamepad from '@/assets/icons/gamepad.png';
-import book from '@/assets/icons/book.png';
-import chart from '@/assets/icons/chart.png';
+import faceTraining from '@/assets/icons/face-training.png';
+import learnFace from '@/assets/icons/learn-face.png';
+import programFace from '@/assets/icons/program-face.png';
+import progressFace from '@/assets/icons/progress-face.png';
+import photoFace from '@/assets/icons/photo-face.png';
+import profileFace from '@/assets/icons/profile-face.png';
 
 export const exerciseIcons: Record<string, string> = {
   'lion-face': lionFace,
@@ -28,15 +28,17 @@ export const exerciseIcons: Record<string, string> = {
   'brow-raise': browRaise,
   'wink-left': wink,
   'lip-protrusion': lipProtrusion,
+  'lip-slide': lipProtrusion,
+  'pencil-hold': lipProtrusion,
 };
 
 export const uiIcons = {
   streakFire,
   xpBolt,
-  trophy,
-  target,
-  camera,
-  gamepad,
-  book,
-  chart,
+  faceTraining,
+  learnFace,
+  programFace,
+  progressFace,
+  photoFace,
+  profileFace,
 };
