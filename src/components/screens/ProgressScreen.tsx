@@ -28,9 +28,9 @@ export function ProgressScreen() {
 
   const stats = [
     { label: 'Gunluk Streak', value: `${streak}`, icon: uiIcons.streakFire, glow: 'glow-orange' },
-    { label: 'Toplam Seans', value: `${totalSessions}`, icon: uiIcons.target, glow: '' },
-    { label: 'Toplam Sure', value: '48 dk', icon: uiIcons.chart, glow: '' },
-    { label: 'Ort. Dogruluk', value: '%72', icon: uiIcons.trophy, glow: '' },
+    { label: 'Toplam Seans', value: `${totalSessions}`, icon: uiIcons.progressFace, glow: '' },
+    { label: 'Toplam Sure', value: '48 dk', icon: uiIcons.progressFace, glow: '' },
+    { label: 'Ort. Dogruluk', value: '%72', icon: uiIcons.faceTraining, glow: '' },
     { label: 'Toplam XP', value: totalXP.toLocaleString(), icon: uiIcons.xpBolt, glow: 'glow-green' },
     { label: 'En Iyi Combo', value: '7x', icon: uiIcons.streakFire, glow: '' },
   ];

@@ -13,10 +13,10 @@ import { uiIcons, exerciseIcons } from '@/assets/iconMap';
 type PlayPhase = 'menu' | 'detail' | 'preparing' | 'training' | 'summary';
 
 const MODES = [
-  { id: 'quick-play' as GameMode, name: 'Hizli Oyun', desc: '5 hareket, 3 set x 20 sn', icon: uiIcons.gamepad, exercises: QUICK_PLAY_EXERCISES, glow: 'glow-red' },
-  { id: 'guided-training' as GameMode, name: 'Rehberli Antrenman', desc: 'Tum hareketler, 3 set x 20 sn', icon: uiIcons.target, exercises: EXERCISES, glow: 'glow-green' },
-  { id: 'gymfiesta' as GameMode, name: 'GymFiesta Challenge', desc: '4 aksiyon, yogun challenge', icon: uiIcons.streakFire, exercises: GYMFIESTA_EXERCISES, glow: 'glow-orange' },
-  { id: 'zone-play' as GameMode, name: 'Dudak Takip Programi', desc: 'Topu takip et, dudak egzersizleri', icon: uiIcons.target, exercises: LIP_TRACKING_EXERCISES, glow: 'glow-pink' },
+  { id: 'quick-play' as GameMode, name: 'Hizli Antrenman', desc: '5 hareket, 3 set x 20 sn', icon: uiIcons.faceTraining, exercises: QUICK_PLAY_EXERCISES, glow: 'glow-red' },
+  { id: 'guided-training' as GameMode, name: 'Rehberli Antrenman', desc: 'Tum hareketler, 3 set x 20 sn', icon: uiIcons.programFace, exercises: EXERCISES, glow: 'glow-green' },
+  { id: 'gymfiesta' as GameMode, name: 'Yogun Challenge', desc: '4 aksiyon, yogun challenge', icon: uiIcons.streakFire, exercises: GYMFIESTA_EXERCISES, glow: 'glow-orange' },
+  { id: 'zone-play' as GameMode, name: 'Dudak Takip Programi', desc: 'Topu takip et, dudak egzersizleri', icon: uiIcons.learnFace, exercises: LIP_TRACKING_EXERCISES, glow: 'glow-pink' },
 ];
 
 // Rhythmic tick sound using Web Audio API

@@ -205,7 +205,7 @@ export function ProgramsScreen() {
     return (
       <div className="p-4 pb-24 flex flex-col items-center justify-center min-h-[60vh] space-y-6">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20">
-          <img src={uiIcons.trophy} alt="" className="w-full h-full object-contain float-3d" />
+          <img src={uiIcons.faceTraining} alt="" className="w-full h-full object-contain float-3d" />
         </motion.div>
         <h2 className="font-display text-2xl font-bold text-foreground">TEBRIKLER!</h2>
         <p className="text-muted-foreground text-sm text-center">Gun tamamlandi. +{xp} XP kazandin!</p>
@@ -294,7 +294,7 @@ export function ProgramsScreen() {
       {activeProg && (
         <div className="card-3d-elevated p-5 glow-green">
           <div className="flex items-center gap-4">
-            <img src={uiIcons.target} alt="" width={44} height={44} className="float-3d" />
+            <img src={uiIcons.progressFace} alt="" width={44} height={44} className="float-3d" />
             <div className="flex-1">
               <p className="text-[10px] font-display font-bold text-secondary">AKTIF PROGRAM</p>
               <h3 className="font-display text-lg font-bold text-foreground">{activeProg.name}</h3>

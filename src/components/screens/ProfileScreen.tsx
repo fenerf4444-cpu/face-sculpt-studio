@@ -48,7 +48,7 @@ export function ProfileScreen() {
     <div className="p-4 pb-24 space-y-6">
       <div className="text-center pt-6">
         <div className="w-24 h-24 rounded-2xl card-3d-elevated mx-auto mb-4 flex items-center justify-center glow-red overflow-hidden">
-          <img src={uiIcons.trophy} alt="Profil" width={52} height={52} className="object-contain float-3d" />
+          <img src={uiIcons.faceTraining} alt="Profil" width={52} height={52} className="object-contain float-3d" />
         </div>
         {editingName ? (
           <div className="flex items-center gap-2 justify-center">
@@ -68,7 +68,7 @@ export function ProfileScreen() {
         {[
           { label: 'STREAK', value: '3', icon: uiIcons.streakFire },
           { label: 'XP', value: '1,240', icon: uiIcons.xpBolt },
-          { label: 'SEANS', value: '12', icon: uiIcons.target },
+          { label: 'SEANS', value: '12', icon: uiIcons.progressFace },
         ].map((s) => (
           <div key={s.label} className="card-3d p-3 text-center flex-1">
             <img src={s.icon} alt="" width={20} height={20} className="mx-auto mb-1.5 object-contain" loading="lazy" />
