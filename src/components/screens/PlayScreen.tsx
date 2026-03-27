@@ -125,7 +125,9 @@ export function PlayScreen() {
     setHoldTime(0);
     setIsResting(false);
     lastTickSec.current = -1;
-  }, [compatibility.allReady, holdDuration]);
+    const ex = detailExercises[0];
+    if (ex) speakExerciseStart(ex.nameTr, 1, ex.reps);
+  }, [compatibility.allReady, holdDuration, detailExercises]);
 
   // Lip slide ball animation
   useEffect(() => {
