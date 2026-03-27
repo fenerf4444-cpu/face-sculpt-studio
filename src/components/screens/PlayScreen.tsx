@@ -253,6 +253,7 @@ export function PlayScreen() {
   const endSession = useCallback(() => {
     clearTimer();
     stopCamera();
+    cancelSpeech();
     setPhase('menu');
     setSessionScore(null);
     setEvaluation(null);
