@@ -275,6 +275,55 @@ export const lipProtrusionEvaluator: Evaluator = (m, holdTime) => {
     { lipProtrusion: m.lipProtrusion, mouthOpenness: m.mouthOpenness }, color);
 };
 
+// ============ LIP SLIDE ============
+// Lips moving left/right - detected by mouth asymmetry changing
+export const lipSlideEvaluator: Evaluator = (m, holdTime) => {
+  // Lip slide is detected by mouth width changes and asymmetry
+  const mouthActive = m.mouthWidth > 0.25;
+  const lipMoving = m.lipProtrusion > 0.1 || Math.abs(m.headYaw) > 0.05;
+  const isDetected = mouthActive && lipMoving;
+
+  const slideScore = Math.min(1, (m.mouthWidth / 0.4)) * 30;
+  const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 25;
+  const symScore = m.symmetryScore * 10;
+  const jawStable = Math.abs(m.headPitch) < 0.15 ? 20 : 10;
+  const lipActivity = Math.min(1, m.lipProtrusion / 0.3) * 15;
+  const accuracy = Math.max(0, Math.min(1, (slideScore + holdScore + symScore + jawStable + lipActivity) / 100));
+
+  let hint: string | null = null;
+  let hintTr: string | null = null;
+  if (!mouthActive) { hint = 'Move your lips more'; hintTr = 'Dudaklarini daha fazla hareket ettir'; }
+  else if (!lipMoving) { hint = 'Slide lips left and right'; hintTr = 'Dudaklarini saga sola kaydir'; }
+
+  const color = isDetected ? (accuracy > 0.5 ? 'green' : 'yellow') : 'red';
+  return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.7 : 0.3,
+    { mouthWidth: m.mouthWidth, lipProtrusion: m.lipProtrusion }, color);
+};
+
+// ============ PENCIL HOLD ============
+// Upper lip pressed up toward nose - lips tight, mouth closed
+export const pencilHoldEvaluator: Evaluator = (m, holdTime) => {
+  const lipsTight = m.mouthOpenness < 0.1;
+  const lipUp = m.lipProtrusion > 0.15;
+  const isDetected = lipsTight && lipUp;
+
+  const tightScore = Math.min(1, (0.15 - m.mouthOpenness) / 0.1) * 30;
+  const lipScore = Math.min(1, m.lipProtrusion / 0.4) * 25;
+  const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 20;
+  const symScore = m.symmetryScore * 15;
+  const stabilityBonus = Math.abs(m.headYaw) < 0.1 ? 10 : 5;
+  const accuracy = Math.max(0, Math.min(1, (tightScore + lipScore + holdScore + symScore + stabilityBonus) / 100));
+
+  let hint: string | null = null;
+  let hintTr: string | null = null;
+  if (!lipsTight) { hint = 'Close lips tighter'; hintTr = 'Dudaklarini daha siki kapat'; }
+  else if (!lipUp) { hint = 'Push upper lip toward nose'; hintTr = 'Ust dudagini burnuna dogru it'; }
+
+  const color = isDetected ? (accuracy > 0.55 ? 'green' : 'yellow') : 'red';
+  return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.75 : 0.3,
+    { mouthOpenness: m.mouthOpenness, lipProtrusion: m.lipProtrusion }, color);
+};
+
 export const EVALUATOR_MAP: Record<string, Evaluator> = {
   'lion-face': lionFaceEvaluator,
   'fish-face': fishFaceEvaluator,
@@ -286,4 +335,6 @@ export const EVALUATOR_MAP: Record<string, Evaluator> = {
   'brow-raise': browRaiseEvaluator,
   'wink-left': winkLeftEvaluator,
   'lip-protrusion': lipProtrusionEvaluator,
+  'lip-slide': lipSlideEvaluator,
+  'pencil-hold': pencilHoldEvaluator,
 };
