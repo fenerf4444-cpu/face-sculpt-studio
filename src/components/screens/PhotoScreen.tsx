@@ -188,7 +188,7 @@ export function PhotoScreen() {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card-3d-elevated p-8 text-center glow-red">
         <div className="relative inline-block mb-5">
-          <img src={uiIcons.camera} alt="Kamera" width={72} height={72} className="float-3d" />
+          <img src={uiIcons.photoFace} alt="Kamera" width={72} height={72} className="float-3d" />
         </div>
         <h3 className="font-display text-xl font-bold text-foreground mb-2">
           {photos.length === 0 ? 'BAZ FOTOGRAF CEK' : 'YENI FOTOGRAF CEK'}

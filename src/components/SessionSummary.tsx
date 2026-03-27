@@ -10,10 +10,10 @@ interface SessionSummaryProps {
 
 export function SessionSummary({ score, onClose, coachMessage }: SessionSummaryProps) {
   const statItems = [
-    { label: 'Dogruluk', value: `%${Math.round(score.accuracy)}`, color: 'text-secondary', icon: uiIcons.target },
+    { label: 'Dogruluk', value: `%${Math.round(score.accuracy)}`, color: 'text-secondary', icon: uiIcons.progressFace },
     { label: 'Tutus Skoru', value: `${score.holdScore}`, color: 'text-neon-orange', icon: uiIcons.streakFire },
     { label: 'Ritim', value: `${score.rhythmScore}`, color: 'text-neon-pink', icon: uiIcons.xpBolt },
-    { label: 'Simetri', value: `${score.symmetryScore}`, color: 'text-neon-cyan', icon: uiIcons.chart },
+    { label: 'Simetri', value: `${score.symmetryScore}`, color: 'text-neon-cyan', icon: uiIcons.progressFace },
     { label: 'Combo', value: `+${score.comboBonus}`, color: 'text-neon-red', icon: uiIcons.streakFire },
   ];
 
@@ -31,7 +31,7 @@ export function SessionSummary({ score, onClose, coachMessage }: SessionSummaryP
             transition={{ type: 'spring', delay: 0.2 }}
             className="inline-block"
           >
-            <img src={uiIcons.trophy} alt="Kupa" width={64} height={64} className="mx-auto float-3d" />
+            <img src={uiIcons.faceTraining} alt="Kupa" width={64} height={64} className="mx-auto float-3d" />
           </motion.div>
           <h2 className="font-display text-3xl font-bold text-foreground mt-3">SEANS TAMAM!</h2>
           <div className="flex items-center justify-center gap-3 mt-4">
