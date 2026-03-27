@@ -7,8 +7,10 @@ import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { CompatibilityCheck } from '@/components/CompatibilityCheck';
 import { TrainingHUD } from '@/components/TrainingHUD';
 import { SessionSummary } from '@/components/SessionSummary';
+import { FaceLandmarkOverlay } from '@/components/FaceLandmarkOverlay';
 import { EVALUATOR_MAP } from '@/lib/evaluators';
 import { uiIcons, exerciseIcons } from '@/assets/iconMap';
+import { speakCountdown, speakExerciseStart, speakRest, speakCorrectiveHint, speakEncouragement, speakSessionEnd, cancelSpeech } from '@/lib/voice-guidance';
 
 type PlayPhase = 'menu' | 'detail' | 'preparing' | 'training' | 'summary';
 
@@ -76,9 +78,11 @@ export function PlayScreen() {
   const [ballX, setBallX] = useState(50);
   const lastTickSec = useRef(-1);
 
-  const { videoRef, metrics, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
+  const { videoRef, metrics, landmarks, videoSize, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionAccuracies = useRef<number[]>([]);
+  const lastVoiceHintTime = useRef(0);
+  const lastEncouragementTime = useRef(0);
 
   const holdDuration = difficulty === 'hard' ? 30 : 20;
 
@@ -121,7 +125,9 @@ export function PlayScreen() {
     setHoldTime(0);
     setIsResting(false);
     lastTickSec.current = -1;
-  }, [compatibility.allReady, holdDuration]);
+    const ex = detailExercises[0];
+    if (ex) speakExerciseStart(ex.nameTr, 1, ex.reps);
+  }, [compatibility.allReady, holdDuration, detailExercises]);
 
   // Lip slide ball animation
   useEffect(() => {
@@ -142,6 +148,9 @@ export function PlayScreen() {
     if (phase !== 'training' || isPaused || activeExercises.length === 0) return;
 
     if (isResting) {
+      const nextEx = currentSet < (activeExercises[currentIdx]?.reps || 3)
+        ? activeExercises[currentIdx] : activeExercises[currentIdx + 1];
+      speakRest(nextEx?.nameTr);
       timerRef.current = setInterval(() => {
         setRestTimeLeft(prev => {
           if (prev <= 0.1) {
@@ -166,7 +175,22 @@ export function PlayScreen() {
         if (evaluator) {
           const result = evaluator(metrics, holdTime);
           setEvaluation(result);
-          if (result.isDetected) setHoldTime(h => h + 0.1);
+          if (result.isDetected) {
+            setHoldTime(h => h + 0.1);
+            // Encouragement every 8 seconds of good hold
+            const now = Date.now();
+            if (holdTime > 0 && holdTime % 8 < 0.15 && now - lastEncouragementTime.current > 7000) {
+              lastEncouragementTime.current = now;
+              speakEncouragement();
+            }
+          } else {
+            // Corrective hint every 4 seconds when not detected
+            const now = Date.now();
+            if (now - lastVoiceHintTime.current > 4000 && result.correctiveHintTr) {
+              lastVoiceHintTime.current = now;
+              speakCorrectiveHint(result.correctiveHintTr);
+            }
+          }
         }
       }
 
@@ -174,7 +198,7 @@ export function PlayScreen() {
         const sec = Math.ceil(prev);
         if (sec !== lastTickSec.current && sec > 0) {
           lastTickSec.current = sec;
-          if (sec <= 5) playCountdown(sec);
+          if (sec <= 5) { playCountdown(sec); speakCountdown(sec); }
           else if (sec % 5 === 0) playTick();
         }
 
@@ -191,6 +215,7 @@ export function PlayScreen() {
             const nextIdx = currentIdx + 1;
             if (nextIdx >= activeExercises.length) {
               clearTimer();
+              speakSessionEnd();
               const avgAcc = sessionAccuracies.current.length > 0
                 ? sessionAccuracies.current.reduce((a, b) => a + b, 0) / sessionAccuracies.current.length : 0.5;
               setSessionScore({
@@ -207,9 +232,11 @@ export function PlayScreen() {
             setHoldTime(0);
             setIsResting(true);
             setRestTimeLeft(5);
+            speakExerciseStart(activeExercises[nextIdx].nameTr, 1, activeExercises[nextIdx].reps);
             return 0;
           } else {
-            setCurrentSet(s => s + 1);
+            const nextSet = currentSet + 1;
+            setCurrentSet(nextSet);
             setHoldTime(0);
             setIsResting(true);
             setRestTimeLeft(3);
@@ -226,6 +253,7 @@ export function PlayScreen() {
   const endSession = useCallback(() => {
     clearTimer();
     stopCamera();
+    cancelSpeech();
     setPhase('menu');
     setSessionScore(null);
     setEvaluation(null);
@@ -253,6 +281,13 @@ export function PlayScreen() {
       <div className="relative h-[calc(100vh-4rem)] bg-background">
         <div className="absolute inset-0 bg-muted flex items-center justify-center">
           <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
+          {/* Face landmark overlay */}
+          <FaceLandmarkOverlay
+            landmarks={landmarks}
+            videoSize={videoSize}
+            activeZone={ex?.zone}
+            isDetected={evaluation?.isDetected}
+          />
           {/* Zone highlight overlay - edges only, not center */}
           <div className="absolute inset-0 pointer-events-none" style={{
             background: `radial-gradient(ellipse 50% 60% at 50% 45%, transparent 40%, ${zoneGlow} 100%)`
