@@ -21,6 +21,8 @@ async function loadModels() {
 
 export function useFaceDetection() {
   const [metrics, setMetrics] = useState<FaceMetrics | null>(null);
+  const [landmarks, setLandmarks] = useState<{ x: number; y: number }[] | null>(null);
+  const [videoSize, setVideoSize] = useState<{ w: number; h: number }>({ w: 640, h: 480 });
   const [compatibility, setCompatibility] = useState<CompatibilityState>({
     camera: 'checking',
     light: 'checking',
@@ -128,7 +130,8 @@ export function useFaceDetection() {
             const faceMetrics = computeFaceMetrics(points, expressionObj);
 
             setMetrics(faceMetrics);
-
+            setLandmarks(points);
+            setVideoSize({ w: videoRef.current.videoWidth || 640, h: videoRef.current.videoHeight || 480 });
             // Face distance check
             const box = result.detection.box;
             const videoWidth = videoRef.current.videoWidth || 640;
@@ -146,6 +149,7 @@ export function useFaceDetection() {
             updateCompatibility({ face: faceStatus, tracking });
           } else {
             setMetrics(null);
+            setLandmarks(null);
             updateCompatibility({ face: 'not-found' as FaceStatus, tracking: 'none' as TrackingConfidence });
           }
         } catch {
@@ -168,6 +172,8 @@ export function useFaceDetection() {
   return {
     videoRef,
     metrics,
+    landmarks,
+    videoSize,
     compatibility,
     isDetecting,
     modelsReady,
