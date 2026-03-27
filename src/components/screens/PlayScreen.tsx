@@ -281,6 +281,13 @@ export function PlayScreen() {
       <div className="relative h-[calc(100vh-4rem)] bg-background">
         <div className="absolute inset-0 bg-muted flex items-center justify-center">
           <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
+          {/* Face landmark overlay */}
+          <FaceLandmarkOverlay
+            landmarks={landmarks}
+            videoSize={videoSize}
+            activeZone={ex?.zone}
+            isDetected={evaluation?.isDetected}
+          />
           {/* Zone highlight overlay - edges only, not center */}
           <div className="absolute inset-0 pointer-events-none" style={{
             background: `radial-gradient(ellipse 50% 60% at 50% 45%, transparent 40%, ${zoneGlow} 100%)`
