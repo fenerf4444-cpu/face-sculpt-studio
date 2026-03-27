@@ -7,8 +7,10 @@ import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { CompatibilityCheck } from '@/components/CompatibilityCheck';
 import { TrainingHUD } from '@/components/TrainingHUD';
 import { SessionSummary } from '@/components/SessionSummary';
+import { FaceLandmarkOverlay } from '@/components/FaceLandmarkOverlay';
 import { EVALUATOR_MAP } from '@/lib/evaluators';
 import { uiIcons, exerciseIcons } from '@/assets/iconMap';
+import { speakCountdown, speakExerciseStart, speakRest, speakCorrectiveHint, speakEncouragement, speakSessionEnd, cancelSpeech } from '@/lib/voice-guidance';
 
 type PlayPhase = 'menu' | 'detail' | 'preparing' | 'training' | 'summary';
 
