@@ -148,6 +148,9 @@ export function PlayScreen() {
     if (phase !== 'training' || isPaused || activeExercises.length === 0) return;
 
     if (isResting) {
+      const nextEx = currentSet < (activeExercises[currentIdx]?.reps || 3)
+        ? activeExercises[currentIdx] : activeExercises[currentIdx + 1];
+      speakRest(nextEx?.nameTr);
       timerRef.current = setInterval(() => {
         setRestTimeLeft(prev => {
           if (prev <= 0.1) {
@@ -172,7 +175,22 @@ export function PlayScreen() {
         if (evaluator) {
           const result = evaluator(metrics, holdTime);
           setEvaluation(result);
-          if (result.isDetected) setHoldTime(h => h + 0.1);
+          if (result.isDetected) {
+            setHoldTime(h => h + 0.1);
+            // Encouragement every 8 seconds of good hold
+            const now = Date.now();
+            if (holdTime > 0 && holdTime % 8 < 0.15 && now - lastEncouragementTime.current > 7000) {
+              lastEncouragementTime.current = now;
+              speakEncouragement();
+            }
+          } else {
+            // Corrective hint every 4 seconds when not detected
+            const now = Date.now();
+            if (now - lastVoiceHintTime.current > 4000 && result.correctiveHintTr) {
+              lastVoiceHintTime.current = now;
+              speakCorrectiveHint(result.correctiveHintTr);
+            }
+          }
         }
       }
 
@@ -180,7 +198,7 @@ export function PlayScreen() {
         const sec = Math.ceil(prev);
         if (sec !== lastTickSec.current && sec > 0) {
           lastTickSec.current = sec;
-          if (sec <= 5) playCountdown(sec);
+          if (sec <= 5) { playCountdown(sec); speakCountdown(sec); }
           else if (sec % 5 === 0) playTick();
         }
 
@@ -197,6 +215,7 @@ export function PlayScreen() {
             const nextIdx = currentIdx + 1;
             if (nextIdx >= activeExercises.length) {
               clearTimer();
+              speakSessionEnd();
               const avgAcc = sessionAccuracies.current.length > 0
                 ? sessionAccuracies.current.reduce((a, b) => a + b, 0) / sessionAccuracies.current.length : 0.5;
               setSessionScore({
@@ -213,9 +232,11 @@ export function PlayScreen() {
             setHoldTime(0);
             setIsResting(true);
             setRestTimeLeft(5);
+            speakExerciseStart(activeExercises[nextIdx].nameTr, 1, activeExercises[nextIdx].reps);
             return 0;
           } else {
-            setCurrentSet(s => s + 1);
+            const nextSet = currentSet + 1;
+            setCurrentSet(nextSet);
             setHoldTime(0);
             setIsResting(true);
             setRestTimeLeft(3);
