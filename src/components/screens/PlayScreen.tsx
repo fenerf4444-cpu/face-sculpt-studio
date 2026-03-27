@@ -78,9 +78,11 @@ export function PlayScreen() {
   const [ballX, setBallX] = useState(50);
   const lastTickSec = useRef(-1);
 
-  const { videoRef, metrics, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
+  const { videoRef, metrics, landmarks, videoSize, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionAccuracies = useRef<number[]>([]);
+  const lastVoiceHintTime = useRef(0);
+  const lastEncouragementTime = useRef(0);
 
   const holdDuration = difficulty === 'hard' ? 30 : 20;
 
