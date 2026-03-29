@@ -29,10 +29,11 @@ function speak(text: string, force = false) {
 }
 
 export function speakCountdown(seconds: number) {
-  if (seconds === 5) speak('Son bes saniye!', true);
-  else if (seconds === 3) speak('Uc', true);
-  else if (seconds === 2) speak('Iki', true);
-  else if (seconds === 1) speak('Bir', true);
+  if (seconds === 10) speak('Son on saniye!', true);
+  else if (seconds === 5) speak('Son bes saniye!', true);
+  else if (seconds === 3) speak('Uc!', true);
+  else if (seconds === 2) speak('Iki!', true);
+  else if (seconds === 1) speak('Bir!', true);
 }
 
 export function speakExerciseStart(exerciseName: string, set: number, totalSets: number) {
