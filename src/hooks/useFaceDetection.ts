@@ -12,7 +12,7 @@ async function loadModels() {
   const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model';
   await Promise.all([
     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+    faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
     faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
   ]);
   modelsLoaded = true;
@@ -152,10 +152,10 @@ export function useFaceDetection() {
     detectingRef.current = true;
     setIsDetecting(true);
 
-    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.2 });
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.22 });
     const SMOOTH_ALPHA = 0.38;
     let lastDetectTime = 0;
-    const DETECT_INTERVAL = 75;
+    const DETECT_INTERVAL = 70;
 
     const detect = async (timestamp: number) => {
       if (!detectingRef.current || !videoRef.current || videoRef.current.readyState < 2) {
@@ -175,7 +175,7 @@ export function useFaceDetection() {
         try {
           const result = await faceapi
             .detectSingleFace(videoRef.current, options)
-            .withFaceLandmarks()
+            .withFaceLandmarks(true)
             .withFaceExpressions();
 
           if (result) {
