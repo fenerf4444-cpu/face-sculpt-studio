@@ -157,17 +157,23 @@ export function PlayScreen() {
     return () => clearInterval(interval);
   }, [phase, isResting, isPaused, currentIdx, activeExercises]);
 
-   // Main training loop - uses refs to avoid constant restarts
+   // Main training loop - real elapsed time based countdown
   useEffect(() => {
     if (phase !== 'training' || isPaused || activeExercises.length === 0) return;
 
     if (isResting) {
+      let lastRestTime = performance.now();
       const nextEx = currentSet < (activeExercises[currentIdx]?.reps || 3)
         ? activeExercises[currentIdx] : activeExercises[currentIdx + 1];
       speakRest(nextEx?.nameTr);
       timerRef.current = setInterval(() => {
+        const now = performance.now();
+        const delta = (now - lastRestTime) / 1000;
+        lastRestTime = now;
+
         setRestTimeLeft(prev => {
-          if (prev <= 0.1) {
+          const next = prev - delta;
+          if (next <= 0) {
             setIsResting(false);
             setTimeLeft(holdDuration);
             setHoldTime(0);
@@ -175,16 +181,21 @@ export function PlayScreen() {
             lastTickSec.current = -1;
             return 0;
           }
-          return prev - 0.1;
+          return next;
         });
-      }, 100);
+      }, 50);
       return () => clearTimer();
     }
 
     const ex = activeExercises[currentIdx];
     if (!ex) return;
 
+    let lastTime = performance.now();
     timerRef.current = setInterval(() => {
+      const now = performance.now();
+      const delta = Math.min(0.2, (now - lastTime) / 1000);
+      lastTime = now;
+
       const currentMetrics = metricsRef.current;
       if (currentMetrics) {
         const evaluator = EVALUATOR_MAP[ex.id];
@@ -193,17 +204,19 @@ export function PlayScreen() {
           const result = evaluator(currentMetrics, ht);
           setEvaluation(result);
           evaluationRef.current = result;
+
           if (result.isDetected) {
-            holdTimeRef.current += 0.1;
+            holdTimeRef.current += delta;
             setHoldTime(holdTimeRef.current);
-            const now = Date.now();
-            if (ht > 0 && ht % 8 < 0.15 && now - lastEncouragementTime.current > 7000) {
+            if (Math.floor(ht) !== Math.floor(holdTimeRef.current) && Math.floor(holdTimeRef.current) > 0) {
+              playTick();
+            }
+            if (holdTimeRef.current > 0 && now - lastEncouragementTime.current > 7000) {
               lastEncouragementTime.current = now;
               speakEncouragement();
             }
           } else {
-            const now = Date.now();
-            if (now - lastVoiceHintTime.current > 4000 && result.correctiveHintTr) {
+            if (now - lastVoiceHintTime.current > 3500 && result.correctiveHintTr) {
               lastVoiceHintTime.current = now;
               speakCorrectiveHint(result.correctiveHintTr);
             }
@@ -212,14 +225,19 @@ export function PlayScreen() {
       }
 
       setTimeLeft(prev => {
-        const sec = Math.ceil(prev);
+        const next = prev - delta;
+        const sec = Math.ceil(next);
         if (sec !== lastTickSec.current && sec > 0) {
           lastTickSec.current = sec;
-          if (sec <= 5) { playCountdown(sec); speakCountdown(sec); }
-          else if (sec % 5 === 0) playTick();
+          if (sec <= 10) {
+            playCountdown(sec);
+            speakCountdown(sec);
+          } else if (sec % 5 === 0) {
+            playTick();
+          }
         }
 
-        if (prev <= 0.1) {
+        if (next <= 0) {
           const accuracy = evaluationRef.current?.accuracyScore || 0;
           sessionAccuracies.current.push(accuracy);
           setXp(p => { xpRef.current = p + Math.round(accuracy * 30); return xpRef.current; });
@@ -237,13 +255,19 @@ export function PlayScreen() {
                 ? sessionAccuracies.current.reduce((a, b) => a + b, 0) / sessionAccuracies.current.length : 0.5;
               setSessionScore({
                 totalScore: xpRef.current + Math.round(avgAcc * 100),
-                xp: xpRef.current + 50, accuracy: avgAcc * 100, holdScore: 75,
-                symmetryScore: 80, rhythmScore: 70,
-                consistencyBonus: comboRef.current > 3 ? 20 : 0, comboBonus: comboRef.current * 5, streakBonus: 10,
+                xp: xpRef.current + 50,
+                accuracy: avgAcc * 100,
+                holdScore: 75,
+                symmetryScore: 80,
+                rhythmScore: 70,
+                consistencyBonus: comboRef.current > 3 ? 20 : 0,
+                comboBonus: comboRef.current * 5,
+                streakBonus: 10,
               });
               setPhase('summary');
               return 0;
             }
+
             setCurrentIdx(nextIdx);
             setCurrentSet(1);
             setHoldTime(0);
@@ -252,19 +276,19 @@ export function PlayScreen() {
             setRestTimeLeft(5);
             speakExerciseStart(activeExercises[nextIdx].nameTr, 1, activeExercises[nextIdx].reps);
             return 0;
-          } else {
-            const nextSet = currentSet + 1;
-            setCurrentSet(nextSet);
-            setHoldTime(0);
-            holdTimeRef.current = 0;
-            setIsResting(true);
-            setRestTimeLeft(3);
-            return 0;
           }
+
+          setCurrentSet(currentSet + 1);
+          setHoldTime(0);
+          holdTimeRef.current = 0;
+          setIsResting(true);
+          setRestTimeLeft(3);
+          return 0;
         }
-        return prev - 0.1;
+
+        return next;
       });
-    }, 100);
+    }, 50);
 
     return () => clearTimer();
   }, [phase, isPaused, currentIdx, currentSet, activeExercises, isResting, clearTimer, holdDuration]);
