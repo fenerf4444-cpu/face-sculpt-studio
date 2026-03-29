@@ -19,6 +19,49 @@ async function loadModels() {
   modelsLoading = false;
 }
 
+function smoothNumber(prev: number, next: number, alpha: number) {
+  return prev + (next - prev) * alpha;
+}
+
+function smoothLandmarks(
+  prev: { x: number; y: number }[] | null,
+  next: { x: number; y: number }[],
+  alpha: number,
+) {
+  if (!prev || prev.length !== next.length) return next;
+  return next.map((point, index) => ({
+    x: smoothNumber(prev[index].x, point.x, alpha),
+    y: smoothNumber(prev[index].y, point.y, alpha),
+  }));
+}
+
+function smoothMetrics(prev: FaceMetrics | null, next: FaceMetrics, alpha: number): FaceMetrics {
+  if (!prev) return next;
+
+  return {
+    mouthOpenness: smoothNumber(prev.mouthOpenness, next.mouthOpenness, alpha),
+    mouthWidth: smoothNumber(prev.mouthWidth, next.mouthWidth, alpha),
+    smileScore: smoothNumber(prev.smileScore, next.smileScore, alpha),
+    leftEyeOpenness: smoothNumber(prev.leftEyeOpenness, next.leftEyeOpenness, alpha),
+    rightEyeOpenness: smoothNumber(prev.rightEyeOpenness, next.rightEyeOpenness, alpha),
+    browRaiseLeft: smoothNumber(prev.browRaiseLeft, next.browRaiseLeft, alpha),
+    browRaiseRight: smoothNumber(prev.browRaiseRight, next.browRaiseRight, alpha),
+    headPitch: smoothNumber(prev.headPitch, next.headPitch, alpha),
+    headYaw: smoothNumber(prev.headYaw, next.headYaw, alpha),
+    headRoll: smoothNumber(prev.headRoll, next.headRoll, alpha),
+    lipProtrusion: smoothNumber(prev.lipProtrusion, next.lipProtrusion, alpha),
+    cheekPuffEstimate: smoothNumber(prev.cheekPuffEstimate, next.cheekPuffEstimate, alpha),
+    jawForward: smoothNumber(prev.jawForward, next.jawForward, alpha),
+    faceWidth: smoothNumber(prev.faceWidth, next.faceWidth, alpha),
+    faceHeight: smoothNumber(prev.faceHeight, next.faceHeight, alpha),
+    symmetryScore: smoothNumber(prev.symmetryScore, next.symmetryScore, alpha),
+    expressionHappy: smoothNumber(prev.expressionHappy, next.expressionHappy, alpha),
+    expressionSurprised: smoothNumber(prev.expressionSurprised, next.expressionSurprised, alpha),
+    expressionAngry: smoothNumber(prev.expressionAngry, next.expressionAngry, alpha),
+    expressionNeutral: smoothNumber(prev.expressionNeutral, next.expressionNeutral, alpha),
+  };
+}
+
 export function useFaceDetection() {
   const [metrics, setMetrics] = useState<FaceMetrics | null>(null);
   const [landmarks, setLandmarks] = useState<{ x: number; y: number }[] | null>(null);
@@ -35,16 +78,22 @@ export function useFaceDetection() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const animFrameRef = useRef<number>(0);
   const detectingRef = useRef(false);
+  const smoothedLandmarksRef = useRef<{ x: number; y: number }[] | null>(null);
+  const smoothedMetricsRef = useRef<FaceMetrics | null>(null);
+  const missedFramesRef = useRef(0);
 
   const updateCompatibility = useCallback((updates: Partial<CompatibilityState>) => {
     setCompatibility(prev => {
       const next = { ...prev, ...updates };
-      next.allReady = next.camera === 'ready' && next.light === 'good' && next.face === 'detected' && (next.tracking === 'high' || next.tracking === 'medium');
+      next.allReady =
+        next.camera === 'ready' &&
+        (next.light === 'good' || next.light === 'low') &&
+        next.face === 'detected' &&
+        (next.tracking === 'high' || next.tracking === 'medium');
       return next;
     });
   }, []);
 
-  // Pre-load models on mount
   useEffect(() => {
     loadModels().then(() => setModelsReady(true));
   }, []);
@@ -52,14 +101,22 @@ export function useFaceDetection() {
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 30 },
+        },
+        audio: false,
       });
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         updateCompatibility({ camera: 'ready' as CameraStatus });
         return true;
       }
+
       return false;
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
@@ -75,10 +132,17 @@ export function useFaceDetection() {
 
   const stopCamera = useCallback(() => {
     detectingRef.current = false;
+    smoothedLandmarksRef.current = null;
+    smoothedMetricsRef.current = null;
+    missedFramesRef.current = 0;
+
     if (videoRef.current?.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
     }
+
+    setMetrics(null);
+    setLandmarks(null);
     setIsDetecting(false);
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
   }, []);
@@ -88,10 +152,10 @@ export function useFaceDetection() {
     detectingRef.current = true;
     setIsDetecting(true);
 
-    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.25 });
-
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.2 });
+    const SMOOTH_ALPHA = 0.38;
     let lastDetectTime = 0;
-    const DETECT_INTERVAL = 50; // ~20fps for smoother tracking
+    const DETECT_INTERVAL = 75;
 
     const detect = async (timestamp: number) => {
       if (!detectingRef.current || !videoRef.current || videoRef.current.readyState < 2) {
@@ -99,14 +163,12 @@ export function useFaceDetection() {
         return;
       }
 
-      // Light check (cheap, every frame)
       const lightLevel = estimateLightLevel(videoRef.current);
       let lightStatus: LightStatus = 'good';
       if (lightLevel < 0.15) lightStatus = 'too-dark';
       else if (lightLevel < 0.3) lightStatus = 'low';
       updateCompatibility({ light: lightStatus });
 
-      // Face detection (throttled)
       if (timestamp - lastDetectTime >= DETECT_INTERVAL) {
         lastDetectTime = timestamp;
 
@@ -117,43 +179,57 @@ export function useFaceDetection() {
             .withFaceExpressions();
 
           if (result) {
-            const landmarks = result.landmarks;
-            const positions = landmarks.positions;
-            const expressions = result.expressions;
+            missedFramesRef.current = 0;
 
-            // Convert to our format
-            const points = positions.map(p => ({ x: p.x, y: p.y }));
+            const rawPoints = result.landmarks.positions.map(point => ({ x: point.x, y: point.y }));
             const expressionObj: Record<string, number> = {};
-            for (const [key, val] of Object.entries(expressions)) {
-              expressionObj[key] = val as number;
+            for (const [key, value] of Object.entries(result.expressions)) {
+              expressionObj[key] = value as number;
             }
-            const faceMetrics = computeFaceMetrics(points, expressionObj);
 
-            setMetrics(faceMetrics);
-            setLandmarks(points);
-            setVideoSize({ w: videoRef.current.videoWidth || 640, h: videoRef.current.videoHeight || 480 });
-            // Face distance check
+            const rawMetrics = computeFaceMetrics(rawPoints, expressionObj);
+            const stablePoints = smoothLandmarks(smoothedLandmarksRef.current, rawPoints, SMOOTH_ALPHA);
+            const stableMetrics = smoothMetrics(smoothedMetricsRef.current, rawMetrics, SMOOTH_ALPHA);
+
+            smoothedLandmarksRef.current = stablePoints;
+            smoothedMetricsRef.current = stableMetrics;
+
+            setMetrics(stableMetrics);
+            setLandmarks(stablePoints);
+            setVideoSize({
+              w: videoRef.current.videoWidth || 640,
+              h: videoRef.current.videoHeight || 480,
+            });
+
             const box = result.detection.box;
             const videoWidth = videoRef.current.videoWidth || 640;
             const faceRatio = box.width / videoWidth;
 
             let faceStatus: FaceStatus = 'detected';
-            if (faceRatio > 0.7) faceStatus = 'too-close';
-            else if (faceRatio < 0.15) faceStatus = 'too-far';
+            if (faceRatio > 0.72) faceStatus = 'too-close';
+            else if (faceRatio < 0.12) faceStatus = 'too-far';
 
             const score = result.detection.score;
             let tracking: TrackingConfidence = 'high';
-            if (score < 0.5) tracking = 'low';
-            else if (score < 0.7) tracking = 'medium';
+            if (score < 0.45) tracking = 'low';
+            else if (score < 0.65) tracking = 'medium';
 
             updateCompatibility({ face: faceStatus, tracking });
           } else {
-            setMetrics(null);
-            setLandmarks(null);
-            updateCompatibility({ face: 'not-found' as FaceStatus, tracking: 'none' as TrackingConfidence });
+            missedFramesRef.current += 1;
+
+            if (missedFramesRef.current < 6) {
+              updateCompatibility({ face: 'unstable' as FaceStatus, tracking: 'low' as TrackingConfidence });
+            } else {
+              smoothedLandmarksRef.current = null;
+              smoothedMetricsRef.current = null;
+              setMetrics(null);
+              setLandmarks(null);
+              updateCompatibility({ face: 'not-found' as FaceStatus, tracking: 'none' as TrackingConfidence });
+            }
           }
         } catch {
-          // Detection error, skip frame
+          updateCompatibility({ face: 'unstable' as FaceStatus, tracking: 'low' as TrackingConfidence });
         }
       }
 
@@ -166,7 +242,9 @@ export function useFaceDetection() {
   }, [modelsReady, updateCompatibility]);
 
   useEffect(() => {
-    return () => { stopCamera(); };
+    return () => {
+      stopCamera();
+    };
   }, [stopCamera]);
 
   return {

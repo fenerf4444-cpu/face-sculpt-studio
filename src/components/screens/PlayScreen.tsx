@@ -78,7 +78,6 @@ export function PlayScreen() {
   const [difficulty, setDifficulty] = useState<'normal' | 'hard'>('normal');
   const [ballX, setBallX] = useState(50);
   const lastTickSec = useRef(-1);
-  const lastFrameTimeRef = useRef<number | null>(null);
 
   const { videoRef, metrics, landmarks, videoSize, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -149,7 +148,7 @@ export function PlayScreen() {
     const ex = activeExercises[currentIdx];
     if (ex?.id !== 'lip-slide') return;
     const interval = setInterval(() => {
-      setBallX(prev => {
+      setBallX(() => {
         const t = Date.now() / 1000;
         return 20 + 60 * ((Math.sin(t * 1.5) + 1) / 2);
       });

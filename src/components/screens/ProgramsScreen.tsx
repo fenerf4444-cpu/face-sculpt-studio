@@ -48,14 +48,14 @@ export function ProgramsScreen() {
   const [isResting, setIsResting] = useState(false);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastTickSec = useRef(-1);
-  const metricsRef = useRef(metrics);
-  const holdTimeRef = useRef(0);
-
   const { videoRef, metrics, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
 
-  useEffect(() => { metricsRef.current = metrics; }, [metrics]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastTickSec = useRef(-1);
+  const metricsRef = useRef<EvaluatorResult | null>(null as unknown as EvaluatorResult | null);
+  const holdTimeRef = useRef(0);
+
+  useEffect(() => { metricsRef.current = metrics as unknown as EvaluatorResult | null; }, [metrics]);
 
   const clearTimer = useCallback(() => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } }, []);
 
