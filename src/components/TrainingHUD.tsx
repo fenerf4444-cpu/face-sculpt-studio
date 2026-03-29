@@ -24,6 +24,7 @@ export function TrainingHUD({
   const barColors = { red: 'from-red-500 to-red-600', yellow: 'from-orange-400 to-orange-500', green: 'from-green-400 to-emerald-500' };
   const glowClasses = { red: 'glow-red', yellow: 'glow-orange', green: 'glow-green' };
   const iconSrc = exerciseIcons[exerciseId];
+  const timeDisplay = timeLeft <= 10 ? Math.max(0, timeLeft).toFixed(1) : String(Math.max(0, Math.ceil(timeLeft)));
 
   return (
     <div className="absolute inset-x-0 top-0 z-20 pointer-events-none">
@@ -60,7 +61,7 @@ export function TrainingHUD({
         <div className="flex items-center justify-between mt-2">
           <span className="text-[10px] text-muted-foreground font-display">SET {rep}/{totalReps}</span>
           <div className={`card-3d-elevated px-3 py-1.5 ${timeLeft <= 5 ? 'glow-red beat-pulse' : ''}`}>
-            <span className="font-display text-2xl font-bold text-foreground">{Math.ceil(timeLeft)}</span>
+            <span className="font-display text-2xl font-bold text-foreground tabular-nums">{timeDisplay}</span>
             <span className="text-[10px] text-muted-foreground ml-0.5">sn</span>
           </div>
         </div>
