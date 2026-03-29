@@ -78,6 +78,7 @@ export function PlayScreen() {
   const [difficulty, setDifficulty] = useState<'normal' | 'hard'>('normal');
   const [ballX, setBallX] = useState(50);
   const lastTickSec = useRef(-1);
+  const lastFrameTimeRef = useRef<number | null>(null);
 
   const { videoRef, metrics, landmarks, videoSize, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
