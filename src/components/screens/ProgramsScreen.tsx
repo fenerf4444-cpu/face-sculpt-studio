@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { uiIcons, exerciseIcons } from '@/assets/iconMap';
 import { EXERCISES } from '@/data/exercises';
 import { ExerciseDefinition, EvaluatorResult } from '@/types/exercises';
+import { FaceMetrics } from '@/lib/face-detection';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { CompatibilityCheck } from '@/components/CompatibilityCheck';
 import { TrainingHUD } from '@/components/TrainingHUD';
@@ -52,10 +53,10 @@ export function ProgramsScreen() {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTickSec = useRef(-1);
-  const metricsRef = useRef<EvaluatorResult | null>(null as unknown as EvaluatorResult | null);
+  const metricsRef = useRef<FaceMetrics | null>(null);
   const holdTimeRef = useRef(0);
 
-  useEffect(() => { metricsRef.current = metrics as unknown as EvaluatorResult | null; }, [metrics]);
+  useEffect(() => { metricsRef.current = metrics; }, [metrics]);
 
   const clearTimer = useCallback(() => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } }, []);
 
