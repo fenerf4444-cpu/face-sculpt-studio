@@ -8,6 +8,7 @@ import { CompatibilityCheck } from '@/components/CompatibilityCheck';
 import { TrainingHUD } from '@/components/TrainingHUD';
 import { SessionSummary } from '@/components/SessionSummary';
 import { FaceLandmarkOverlay } from '@/components/FaceLandmarkOverlay';
+import { NeonFaceFrame } from '@/components/NeonFaceFrame';
 import { EVALUATOR_MAP } from '@/lib/evaluators';
 import { uiIcons, exerciseIcons } from '@/assets/iconMap';
 import { speakCountdown, speakExerciseStart, speakRest, speakCorrectiveHint, speakEncouragement, speakSessionEnd, cancelSpeech } from '@/lib/voice-guidance';
@@ -287,6 +288,12 @@ export function PlayScreen() {
             videoSize={videoSize}
             activeZone={ex?.zone}
             isDetected={evaluation?.isDetected}
+          />
+          <NeonFaceFrame
+            landmarks={landmarks}
+            videoSize={videoSize}
+            isCorrect={evaluation?.isDetected && (evaluation?.accuracyScore || 0) > 0.4}
+            isDetected={!!evaluation?.isDetected}
           />
           {/* Zone highlight overlay - edges only, not center */}
           <div className="absolute inset-0 pointer-events-none" style={{
