@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { uiIcons, exerciseIcons } from '@/assets/iconMap';
 import { EXERCISES } from '@/data/exercises';
 import { ExerciseDefinition, EvaluatorResult } from '@/types/exercises';
+import { FaceMetrics } from '@/lib/face-detection';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { CompatibilityCheck } from '@/components/CompatibilityCheck';
 import { TrainingHUD } from '@/components/TrainingHUD';
@@ -48,10 +49,14 @@ export function ProgramsScreen() {
   const [isResting, setIsResting] = useState(false);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const { videoRef, metrics, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTickSec = useRef(-1);
+  const metricsRef = useRef<FaceMetrics | null>(null);
+  const holdTimeRef = useRef(0);
 
-  const { videoRef, metrics, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
+  useEffect(() => { metricsRef.current = metrics; }, [metrics]);
 
   const clearTimer = useCallback(() => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } }, []);
 
@@ -88,29 +93,52 @@ export function ProgramsScreen() {
     if (phase !== 'training' || isPaused || exercises.length === 0) return;
 
     if (isResting) {
+      let lastRestTime = performance.now();
       timerRef.current = setInterval(() => {
+        const now = performance.now();
+        const delta = (now - lastRestTime) / 1000;
+        lastRestTime = now;
+
         setRestTimeLeft(prev => {
-          if (prev <= 0.1) { setIsResting(false); setTimeLeft(20); setHoldTime(0); return 0; }
-          return prev - 0.1;
+          const next = prev - delta;
+          if (next <= 0) {
+            setIsResting(false);
+            setTimeLeft(20);
+            setHoldTime(0);
+            holdTimeRef.current = 0;
+            return 0;
+          }
+          return next;
         });
-      }, 100);
+      }, 50);
       return () => clearTimer();
     }
 
     const ex = exercises[currentIdx];
     if (!ex) return;
 
+    let lastTime = performance.now();
     timerRef.current = setInterval(() => {
-      if (metrics) {
+      const now = performance.now();
+      const delta = Math.min(0.2, (now - lastTime) / 1000);
+      lastTime = now;
+
+      const currentMetrics = metricsRef.current;
+      if (currentMetrics) {
         const evaluator = EVALUATOR_MAP[ex.id];
         if (evaluator) {
-          const result = evaluator(metrics, holdTime);
+          const result = evaluator(currentMetrics, holdTimeRef.current);
           setEvaluation(result);
-          if (result.isDetected) setHoldTime(h => h + 0.1);
+          if (result.isDetected) {
+            holdTimeRef.current += delta;
+            setHoldTime(holdTimeRef.current);
+          }
         }
       }
+
       setTimeLeft(prev => {
-        if (prev <= 0.1) {
+        const next = prev - delta;
+        if (next <= 0) {
           setXp(p => p + 25);
           if (currentSet >= (ex.reps || 3)) {
             setCompletedIds(p => new Set(p).add(ex.id));
@@ -124,20 +152,24 @@ export function ProgramsScreen() {
             }
             setCurrentIdx(nextIdx);
             setCurrentSet(1);
+            setHoldTime(0);
+            holdTimeRef.current = 0;
             setIsResting(true);
             setRestTimeLeft(5);
             return 0;
           }
           setCurrentSet(s => s + 1);
+          setHoldTime(0);
+          holdTimeRef.current = 0;
           setIsResting(true);
           setRestTimeLeft(3);
           return 0;
         }
-        return prev - 0.1;
+        return next;
       });
-    }, 100);
+    }, 50);
     return () => clearTimer();
-  }, [phase, isPaused, currentIdx, currentSet, exercises, metrics, holdTime, isResting, clearTimer, stopCamera]);
+  }, [phase, isPaused, currentIdx, currentSet, exercises, isResting, clearTimer, stopCamera]);
 
   const endSession = useCallback(() => {
     clearTimer();
