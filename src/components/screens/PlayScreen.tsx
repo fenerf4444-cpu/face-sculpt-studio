@@ -85,6 +85,18 @@ export function PlayScreen() {
   const lastVoiceHintTime = useRef(0);
   const lastEncouragementTime = useRef(0);
 
+  // Refs to avoid effect dependency issues (timer restart bug)
+  const metricsRef = useRef(metrics);
+  const holdTimeRef = useRef(0);
+  const comboRef = useRef(0);
+  const xpRef = useRef(0);
+  const evaluationRef = useRef<EvaluatorResult | null>(null);
+
+  useEffect(() => { metricsRef.current = metrics; }, [metrics]);
+  useEffect(() => { holdTimeRef.current = holdTime; }, [holdTime]);
+  useEffect(() => { comboRef.current = combo; }, [combo]);
+  useEffect(() => { xpRef.current = xp; }, [xp]);
+
   const holdDuration = difficulty === 'hard' ? 30 : 20;
 
   const clearTimer = useCallback(() => {
