@@ -156,7 +156,7 @@ export function PlayScreen() {
     return () => clearInterval(interval);
   }, [phase, isResting, isPaused, currentIdx, activeExercises]);
 
-  // Main training loop
+   // Main training loop - uses refs to avoid constant restarts
   useEffect(() => {
     if (phase !== 'training' || isPaused || activeExercises.length === 0) return;
 
@@ -170,6 +170,7 @@ export function PlayScreen() {
             setIsResting(false);
             setTimeLeft(holdDuration);
             setHoldTime(0);
+            holdTimeRef.current = 0;
             lastTickSec.current = -1;
             return 0;
           }
@@ -183,21 +184,23 @@ export function PlayScreen() {
     if (!ex) return;
 
     timerRef.current = setInterval(() => {
-      if (metrics) {
+      const currentMetrics = metricsRef.current;
+      if (currentMetrics) {
         const evaluator = EVALUATOR_MAP[ex.id];
         if (evaluator) {
-          const result = evaluator(metrics, holdTime);
+          const ht = holdTimeRef.current;
+          const result = evaluator(currentMetrics, ht);
           setEvaluation(result);
+          evaluationRef.current = result;
           if (result.isDetected) {
-            setHoldTime(h => h + 0.1);
-            // Encouragement every 8 seconds of good hold
+            holdTimeRef.current += 0.1;
+            setHoldTime(holdTimeRef.current);
             const now = Date.now();
-            if (holdTime > 0 && holdTime % 8 < 0.15 && now - lastEncouragementTime.current > 7000) {
+            if (ht > 0 && ht % 8 < 0.15 && now - lastEncouragementTime.current > 7000) {
               lastEncouragementTime.current = now;
               speakEncouragement();
             }
           } else {
-            // Corrective hint every 4 seconds when not detected
             const now = Date.now();
             if (now - lastVoiceHintTime.current > 4000 && result.correctiveHintTr) {
               lastVoiceHintTime.current = now;
@@ -216,14 +219,14 @@ export function PlayScreen() {
         }
 
         if (prev <= 0.1) {
-          const accuracy = evaluation?.accuracyScore || 0;
+          const accuracy = evaluationRef.current?.accuracyScore || 0;
           sessionAccuracies.current.push(accuracy);
-          setXp(p => p + Math.round(accuracy * 30));
+          setXp(p => { xpRef.current = p + Math.round(accuracy * 30); return xpRef.current; });
 
           if (currentSet >= ex.reps) {
             setCompletedIds(p => new Set(p).add(ex.id));
-            setCombo(p => p + 1);
-            setXp(p => p + 25);
+            setCombo(p => { comboRef.current = p + 1; return comboRef.current; });
+            setXp(p => { xpRef.current = p + 25; return xpRef.current; });
 
             const nextIdx = currentIdx + 1;
             if (nextIdx >= activeExercises.length) {
@@ -232,10 +235,10 @@ export function PlayScreen() {
               const avgAcc = sessionAccuracies.current.length > 0
                 ? sessionAccuracies.current.reduce((a, b) => a + b, 0) / sessionAccuracies.current.length : 0.5;
               setSessionScore({
-                totalScore: xp + Math.round(avgAcc * 100),
-                xp: xp + 50, accuracy: avgAcc * 100, holdScore: 75,
+                totalScore: xpRef.current + Math.round(avgAcc * 100),
+                xp: xpRef.current + 50, accuracy: avgAcc * 100, holdScore: 75,
                 symmetryScore: 80, rhythmScore: 70,
-                consistencyBonus: combo > 3 ? 20 : 0, comboBonus: combo * 5, streakBonus: 10,
+                consistencyBonus: comboRef.current > 3 ? 20 : 0, comboBonus: comboRef.current * 5, streakBonus: 10,
               });
               setPhase('summary');
               return 0;
@@ -243,6 +246,7 @@ export function PlayScreen() {
             setCurrentIdx(nextIdx);
             setCurrentSet(1);
             setHoldTime(0);
+            holdTimeRef.current = 0;
             setIsResting(true);
             setRestTimeLeft(5);
             speakExerciseStart(activeExercises[nextIdx].nameTr, 1, activeExercises[nextIdx].reps);
@@ -251,6 +255,7 @@ export function PlayScreen() {
             const nextSet = currentSet + 1;
             setCurrentSet(nextSet);
             setHoldTime(0);
+            holdTimeRef.current = 0;
             setIsResting(true);
             setRestTimeLeft(3);
             return 0;
@@ -261,7 +266,7 @@ export function PlayScreen() {
     }, 100);
 
     return () => clearTimer();
-  }, [phase, isPaused, currentIdx, currentSet, activeExercises, metrics, holdTime, combo, xp, evaluation?.accuracyScore, isResting, clearTimer, holdDuration]);
+  }, [phase, isPaused, currentIdx, currentSet, activeExercises, isResting, clearTimer, holdDuration]);
 
   const endSession = useCallback(() => {
     clearTimer();
