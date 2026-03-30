@@ -324,6 +324,162 @@ export const pencilHoldEvaluator: Evaluator = (m, holdTime) => {
     { mouthOpenness: m.mouthOpenness, lipProtrusion: m.lipProtrusion }, color);
 };
 
+// ============ EYE TEMPLE LIFT (hand-assisted) ============
+export const eyeTempleLiftEvaluator: Evaluator = (m, holdTime) => {
+  const eyesWide = (m.leftEyeOpenness + m.rightEyeOpenness) / 2 > 0.55;
+  const browsUp = (m.browRaiseLeft + m.browRaiseRight) / 2 > 0.35;
+  const isDetected = eyesWide;
+
+  const eyeScore = Math.min(1, ((m.leftEyeOpenness + m.rightEyeOpenness) / 2) / 0.8) * 30;
+  const browScore = Math.min(1, ((m.browRaiseLeft + m.browRaiseRight) / 2) / 0.6) * 25;
+  const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 20;
+  const symScore = m.symmetryScore * 15;
+  const stabilityBonus = Math.abs(m.headRoll) < 0.1 ? 10 : 5;
+  const accuracy = (eyeScore + browScore + holdScore + symScore + stabilityBonus) / 100;
+
+  let hint: string | null = null;
+  let hintTr: string | null = null;
+  if (!eyesWide) { hint = 'Open eyes wider'; hintTr = 'Gozlerini daha fazla ac'; }
+  else if (!browsUp) { hint = 'Lift brows while pressing temples'; hintTr = 'Sakaklara basarken kaslarini kaldir'; }
+
+  const color = isDetected ? (accuracy > 0.6 ? 'green' : 'yellow') : 'red';
+  return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.8 : 0.3,
+    { eyeOpen: (m.leftEyeOpenness + m.rightEyeOpenness) / 2, browRaise: (m.browRaiseLeft + m.browRaiseRight) / 2 }, color);
+};
+
+// ============ SMILE LIFT (hand-assisted) ============
+export const smileLiftEvaluator: Evaluator = (m, holdTime) => {
+  const smileOk = m.smileScore > 0.4;
+  const isDetected = smileOk;
+
+  const smilePoints = Math.min(1, m.smileScore / 0.8) * 35;
+  const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 20;
+  const symScore = m.symmetryScore * 20;
+  const cheekBonus = Math.min(1, m.mouthWidth / 0.45) * 15;
+  const stabilityBonus = Math.abs(m.headYaw) < 0.1 ? 10 : 5;
+  const accuracy = (smilePoints + holdScore + symScore + cheekBonus + stabilityBonus) / 100;
+
+  let hint: string | null = null;
+  let hintTr: string | null = null;
+  if (!smileOk) { hint = 'Smile and push corners up with fingers'; hintTr = 'Gulumsle ve parmaklarinla agiz kenarlarini yukari it'; }
+
+  const color = isDetected ? (accuracy > 0.6 ? 'green' : 'yellow') : 'red';
+  return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.8 : 0.3,
+    { smileScore: m.smileScore, mouthWidth: m.mouthWidth }, color);
+};
+
+// ============ NOSE BRIDGE PRESS (hand-assisted / guided) ============
+export const noseBridgePressEvaluator: Evaluator = (m, holdTime) => {
+  // Guided exercise - detect face stability and relaxation
+  const faceRelaxed = m.mouthOpenness < 0.15 && (m.leftEyeOpenness + m.rightEyeOpenness) / 2 < 0.55;
+  const stable = Math.abs(m.headYaw) < 0.12 && Math.abs(m.headPitch) < 0.12;
+  const isDetected = stable;
+
+  const relaxScore = faceRelaxed ? 30 : 15;
+  const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 25;
+  const stabilityScore = stable ? 25 : 10;
+  const symScore = m.symmetryScore * 20;
+  const accuracy = (relaxScore + holdScore + stabilityScore + symScore) / 100;
+
+  let hint: string | null = null;
+  let hintTr: string | null = null;
+  if (!stable) { hint = 'Keep head still while pressing'; hintTr = 'Bastirilirken basini sabit tut'; }
+  else if (!faceRelaxed) { hint = 'Relax your face, close eyes gently'; hintTr = 'Yuzunu rahat birak, gozlerini hafifce kapat'; }
+
+  const color = isDetected ? (accuracy > 0.5 ? 'green' : 'yellow') : 'red';
+  return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.7 : 0.3,
+    { headYaw: m.headYaw, headPitch: m.headPitch, mouthOpenness: m.mouthOpenness }, color);
+};
+
+// ============ WIDE SMILE STRETCH (hand-assisted) ============
+export const wideSmileStretchEvaluator: Evaluator = (m, holdTime) => {
+  const smileWide = m.smileScore > 0.5;
+  const mouthWide = m.mouthWidth > 0.38;
+  const isDetected = smileWide && mouthWide;
+
+  const smilePoints = Math.min(1, m.smileScore / 0.85) * 30;
+  const widthPoints = Math.min(1, m.mouthWidth / 0.5) * 25;
+  const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 20;
+  const symScore = m.symmetryScore * 15;
+  const happyBonus = Math.min(1, m.expressionHappy / 0.6) * 10;
+  const accuracy = (smilePoints + widthPoints + holdScore + symScore + happyBonus) / 100;
+
+  let hint: string | null = null;
+  let hintTr: string | null = null;
+  if (!smileWide) { hint = 'Smile wider, show all teeth!'; hintTr = 'Daha genis gulumsle, tum dislerini goster!'; }
+  else if (!mouthWide) { hint = 'Stretch cheeks outward with fingers'; hintTr = 'Parmaklarinla yanaklarini disari cek'; }
+
+  const color = isDetected ? (accuracy > 0.6 ? 'green' : 'yellow') : 'red';
+  return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.85 : 0.3,
+    { smileScore: m.smileScore, mouthWidth: m.mouthWidth, happy: m.expressionHappy }, color);
+};
+
+// ============ UNDER EYE PRESS (hand-assisted / guided) ============
+export const underEyePressEvaluator: Evaluator = (m, holdTime) => {
+  const eyesClosed = (m.leftEyeOpenness + m.rightEyeOpenness) / 2 < 0.3;
+  const stable = Math.abs(m.headYaw) < 0.1;
+  const isDetected = stable;
+
+  const eyeScore = eyesClosed ? 30 : 15;
+  const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 25;
+  const stabilityScore = stable ? 25 : 10;
+  const symScore = m.symmetryScore * 20;
+  const accuracy = (eyeScore + holdScore + stabilityScore + symScore) / 100;
+
+  let hint: string | null = null;
+  let hintTr: string | null = null;
+  if (!eyesClosed) { hint = 'Close eyes gently during massage'; hintTr = 'Masaj sirasinda gozlerini hafifce kapat'; }
+  else if (!stable) { hint = 'Keep head still'; hintTr = 'Basini sabit tut'; }
+
+  const color = isDetected ? (accuracy > 0.5 ? 'green' : 'yellow') : 'red';
+  return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.7 : 0.3,
+    { eyeOpen: (m.leftEyeOpenness + m.rightEyeOpenness) / 2, headYaw: m.headYaw }, color);
+};
+
+// ============ FOREHEAD SMOOTH (hand-assisted) ============
+export const foreheadSmoothEvaluator: Evaluator = (m, holdTime) => {
+  const browsEngaged = (m.browRaiseLeft + m.browRaiseRight) / 2 > 0.3;
+  const stable = Math.abs(m.headPitch) < 0.15;
+  const isDetected = stable;
+
+  const browScore = Math.min(1, ((m.browRaiseLeft + m.browRaiseRight) / 2) / 0.6) * 30;
+  const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 25;
+  const stabilityScore = stable ? 20 : 10;
+  const symScore = m.symmetryScore * 15;
+  const relaxBonus = m.mouthOpenness < 0.1 ? 10 : 5;
+  const accuracy = (browScore + holdScore + stabilityScore + symScore + relaxBonus) / 100;
+
+  let hint: string | null = null;
+  let hintTr: string | null = null;
+  if (!browsEngaged) { hint = 'Try to raise brows against your hands'; hintTr = 'Ellerine karsi kaslarini kaldirmaya calis'; }
+  else if (!stable) { hint = 'Keep head level'; hintTr = 'Basini duz tut'; }
+
+  const color = isDetected ? (accuracy > 0.5 ? 'green' : 'yellow') : 'red';
+  return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.75 : 0.3,
+    { browRaise: (m.browRaiseLeft + m.browRaiseRight) / 2, headPitch: m.headPitch }, color);
+};
+
+// ============ JAW SIDE STRETCH (hand-assisted) ============
+export const jawSideStretchEvaluator: Evaluator = (m, holdTime) => {
+  const jawMoved = Math.abs(m.headYaw) > 0.08 || m.cheekPuffEstimate > 0.15;
+  const isDetected = jawMoved;
+
+  const jawScore = Math.min(1, Math.abs(m.headYaw) / 0.2) * 25;
+  const puffScore = Math.min(1, m.cheekPuffEstimate / 0.4) * 25;
+  const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 25;
+  const symScore = (1 - m.symmetryScore) * 15; // asymmetry is expected here
+  const stabilityBonus = Math.abs(m.headPitch) < 0.1 ? 10 : 5;
+  const accuracy = Math.max(0, Math.min(1, (jawScore + puffScore + holdScore + symScore + stabilityBonus) / 100));
+
+  let hint: string | null = null;
+  let hintTr: string | null = null;
+  if (!jawMoved) { hint = 'Push jaw to the side more'; hintTr = 'Ceneni daha fazla yana it'; }
+
+  const color = isDetected ? (accuracy > 0.5 ? 'green' : 'yellow') : 'red';
+  return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.75 : 0.3,
+    { headYaw: m.headYaw, cheekPuff: m.cheekPuffEstimate }, color);
+};
+
 export const EVALUATOR_MAP: Record<string, Evaluator> = {
   'lion-face': lionFaceEvaluator,
   'fish-face': fishFaceEvaluator,
@@ -337,4 +493,11 @@ export const EVALUATOR_MAP: Record<string, Evaluator> = {
   'lip-protrusion': lipProtrusionEvaluator,
   'lip-slide': lipSlideEvaluator,
   'pencil-hold': pencilHoldEvaluator,
+  'eye-temple-lift': eyeTempleLiftEvaluator,
+  'smile-lift': smileLiftEvaluator,
+  'nose-bridge-press': noseBridgePressEvaluator,
+  'wide-smile-stretch': wideSmileStretchEvaluator,
+  'under-eye-press': underEyePressEvaluator,
+  'forehead-smooth': foreheadSmoothEvaluator,
+  'jaw-side-stretch': jawSideStretchEvaluator,
 };

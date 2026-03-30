@@ -16,6 +16,13 @@ import programFace from '@/assets/icons/program-face.png';
 import progressFace from '@/assets/icons/progress-face.png';
 import photoFace from '@/assets/icons/photo-face.png';
 import profileFace from '@/assets/icons/profile-face.png';
+import eyeTempleLift from '@/assets/icons/eye-temple-lift.png';
+import smileLift from '@/assets/icons/smile-lift.png';
+import noseBridgePress from '@/assets/icons/nose-bridge-press.png';
+import wideSmileStretch from '@/assets/icons/wide-smile-stretch.png';
+import underEyePress from '@/assets/icons/under-eye-press.png';
+import foreheadSmooth from '@/assets/icons/forehead-smooth.png';
+import jawSideStretch from '@/assets/icons/jaw-side-stretch.png';
 
 export const exerciseIcons: Record<string, string> = {
   'lion-face': lionFace,
@@ -30,6 +37,13 @@ export const exerciseIcons: Record<string, string> = {
   'lip-protrusion': lipProtrusion,
   'lip-slide': lipProtrusion,
   'pencil-hold': lipProtrusion,
+  'eye-temple-lift': eyeTempleLift,
+  'smile-lift': smileLift,
+  'nose-bridge-press': noseBridgePress,
+  'wide-smile-stretch': wideSmileStretch,
+  'under-eye-press': underEyePress,
+  'forehead-smooth': foreheadSmooth,
+  'jaw-side-stretch': jawSideStretch,
 };
 
 export const uiIcons = {
