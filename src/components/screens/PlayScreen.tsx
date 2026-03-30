@@ -320,8 +320,8 @@ export function PlayScreen() {
     const zoneGlow = zoneColorMap[ex?.zone || ''] || 'transparent';
 
     return (
-      <div className="relative h-[calc(100vh-4rem)] bg-background">
-        <div className="absolute inset-0 bg-muted flex items-center justify-center">
+      <div className="relative h-[100dvh] bg-background overflow-hidden">
+        <div className="absolute inset-0 bg-muted overflow-hidden">
           <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
           {/* Face landmark overlay */}
           <FaceLandmarkOverlay
