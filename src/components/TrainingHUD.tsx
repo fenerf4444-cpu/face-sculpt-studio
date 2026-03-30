@@ -67,19 +67,24 @@ export function TrainingHUD({
         </div>
       </div>
 
-      {/* Corrective hint - top area, not center */}
+      {/* Corrective hint - bottom area, above accuracy */}
       {evaluation?.correctiveHintTr && !isPaused && (
-        <motion.div key={evaluation.correctiveHintTr} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="mx-3 mt-1">
-          <div className={`card-3d-elevated px-3 py-2 text-center ${glowClasses[stateColor]}`}>
-            <p className="text-xs font-display font-bold text-foreground">{evaluation.correctiveHintTr}</p>
+        <motion.div key={evaluation.correctiveHintTr} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+          className="fixed left-1/2 -translate-x-1/2 bottom-[7.5rem] z-30 pointer-events-none w-[85%] max-w-sm">
+          <div className={`card-3d-elevated px-4 py-2.5 text-center ${glowClasses[stateColor]} backdrop-blur-sm`}>
+            <p className="text-xs font-display font-bold text-foreground leading-tight">{evaluation.correctiveHintTr}</p>
           </div>
         </motion.div>
       )}
 
-      {/* Accuracy - small, right side */}
+      {/* Accuracy - bottom center above buttons */}
       {evaluation && (
-        <div className="absolute right-3 top-24 card-3d-inset px-2 py-1 pointer-events-none">
-          <p className="text-[9px] text-muted-foreground font-display">%{Math.round(evaluation.accuracyScore * 100)}</p>
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-[4.5rem] z-30 pointer-events-none">
+          <div className="card-3d-elevated px-4 py-2 flex items-center gap-2 backdrop-blur-sm">
+            <div className={`w-2.5 h-2.5 rounded-full ${stateColor === 'green' ? 'bg-green-400 glow-green' : stateColor === 'yellow' ? 'bg-orange-400 glow-orange' : 'bg-red-400 glow-red'} animate-pulse`} />
+            <span className="font-display text-sm font-bold text-foreground tabular-nums">%{Math.round(evaluation.accuracyScore * 100)}</span>
+            <span className="text-[10px] text-muted-foreground font-display">{evaluation.isDetected ? 'Algilaniyor' : 'Yuz bulunamadi'}</span>
+          </div>
         </div>
       )}
 
