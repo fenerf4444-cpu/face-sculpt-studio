@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { getObjectCoverTransform, sizeCanvasToParent } from '@/lib/canvas-utils';
 
 interface FaceLandmarkOverlayProps {
   landmarks: { x: number; y: number }[] | null;
@@ -7,7 +8,6 @@ interface FaceLandmarkOverlayProps {
   isDetected?: boolean;
 }
 
-// 68-point landmark indices by zone
 const ZONES: Record<string, { indices: number[][]; color: string }> = {
   jaw: {
     indices: [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]],
@@ -44,38 +44,28 @@ export function FaceLandmarkOverlay({ landmarks, videoSize, activeZone, isDetect
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Match canvas to container size
-    const rect = canvas.parentElement?.getBoundingClientRect();
-    if (!rect) return;
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const size = sizeCanvasToParent(canvas);
+    if (!size) return;
+    ctx.clearRect(0, 0, size.w, size.h);
 
     if (!landmarks || landmarks.length < 68) return;
 
-    const scaleX = canvas.width / videoSize.w;
-    const scaleY = canvas.height / videoSize.h;
+    const tx = getObjectCoverTransform(videoSize.w, videoSize.h, size.w, size.h, true);
 
-    // Mirror X for selfie view
-    const tx = (p: { x: number; y: number }) => ({
-      x: canvas.width - p.x * scaleX,
-      y: p.y * scaleY,
-    });
-
-    // Draw all landmark points (small dots)
-    ctx.fillStyle = isDetected ? 'rgba(0, 255, 150, 0.35)' : 'rgba(255, 80, 80, 0.35)';
+    // Draw all landmark points
+    ctx.fillStyle = isDetected ? 'rgba(0, 255, 150, 0.4)' : 'rgba(255, 80, 80, 0.4)';
     for (const pt of landmarks) {
       const { x, y } = tx(pt);
       ctx.beginPath();
-      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // Draw zone contours
     for (const [zoneName, zone] of Object.entries(ZONES)) {
       const isActive = activeZone === zoneName;
-      const baseAlpha = isActive ? 0.85 : 0.25;
-      const lineWidth = isActive ? 2.5 : 1;
+      const baseAlpha = isActive ? 0.9 : 0.2;
+      const lineWidth = isActive ? 2.5 : 0.8;
 
       ctx.strokeStyle = zone.color;
       ctx.globalAlpha = baseAlpha;
@@ -95,7 +85,6 @@ export function FaceLandmarkOverlay({ landmarks, videoSize, activeZone, isDetect
         ctx.stroke();
       }
 
-      // Active zone glow
       if (isActive) {
         ctx.globalAlpha = 0.12;
         ctx.fillStyle = zone.color;
