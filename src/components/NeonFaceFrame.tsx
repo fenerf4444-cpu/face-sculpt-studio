@@ -100,38 +100,57 @@ export function NeonFaceFrame({ landmarks, videoSize, isCorrect, isDetected }: N
       const rx = (maxX - minX) / 2;
       const ry = (maxY - minY) / 2;
 
-      glowPhase.current += 0.04;
+      glowPhase.current += 0.035;
       const pulse = 0.6 + 0.3 * Math.sin(glowPhase.current);
+      const breathe = 0.5 + 0.5 * Math.sin(glowPhase.current * 0.7);
 
       const hue = isCorrect ? 160 : 0;
       const sat = isCorrect ? '75%' : '85%';
       const light = isCorrect ? '50%' : '55%';
       const color = `hsl(${hue}, ${sat}, ${light})`;
-      const glowColor = `hsla(${hue}, ${sat}, ${light}, ${pulse * 0.4})`;
 
-      // Outer glow ellipse
+      // Scanning lines effect - horizontal lines moving across face
+      const scanY = cy - ry + ((glowPhase.current * 40) % (ry * 2));
+      ctx.strokeStyle = `hsla(${hue}, ${sat}, ${light}, 0.15)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx - rx * 0.8, scanY);
+      ctx.lineTo(cx + rx * 0.8, scanY);
+      ctx.stroke();
+
+      // Outer glow ellipse with double layer
       ctx.shadowColor = color;
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = 24;
       ctx.strokeStyle = `hsla(${hue}, ${sat}, ${light}, ${pulse})`;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();
+
+      // Mid ring
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = `hsla(${hue}, ${sat}, ${light}, ${pulse * 0.5})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx * 1.08, ry * 1.08, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
       ctx.shadowBlur = 0;
 
       // Inner subtle glow
-      ctx.strokeStyle = `hsla(${hue}, ${sat}, ${light}, ${pulse * 0.3})`;
+      ctx.strokeStyle = `hsla(${hue}, ${sat}, ${light}, ${pulse * 0.25})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, rx * 0.95, ry * 0.95, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy, rx * 0.92, ry * 0.92, 0, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Corner brackets on bounding box
-      const bLen = 16;
+      // Corner brackets with enhanced glow
+      const bLen = 20;
       ctx.strokeStyle = color;
       ctx.lineWidth = 3;
       ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 14;
 
       const bx1 = minX, by1 = minY, bx2 = maxX, by2 = maxY;
       // TL
@@ -142,6 +161,15 @@ export function NeonFaceFrame({ landmarks, videoSize, isCorrect, isDetected }: N
       ctx.beginPath(); ctx.moveTo(bx1, by2 - bLen); ctx.lineTo(bx1, by2); ctx.lineTo(bx1 + bLen, by2); ctx.stroke();
       // BR
       ctx.beginPath(); ctx.moveTo(bx2 - bLen, by2); ctx.lineTo(bx2, by2); ctx.lineTo(bx2, by2 - bLen); ctx.stroke();
+
+      // Crosshair at nose tip (landmark 30)
+      const nose = tx(landmarks[30]);
+      ctx.strokeStyle = `hsla(${hue}, ${sat}, ${light}, ${breathe * 0.5})`;
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 6;
+      const chSize = 6;
+      ctx.beginPath(); ctx.moveTo(nose.x - chSize, nose.y); ctx.lineTo(nose.x + chSize, nose.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(nose.x, nose.y - chSize); ctx.lineTo(nose.x, nose.y + chSize); ctx.stroke();
 
       ctx.shadowBlur = 0;
 
