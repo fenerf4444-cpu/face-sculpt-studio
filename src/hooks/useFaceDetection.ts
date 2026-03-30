@@ -11,8 +11,8 @@ async function loadModels() {
   modelsLoading = true;
   const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model';
   await Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-    faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
     faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
   ]);
   modelsLoaded = true;
@@ -100,11 +100,13 @@ export function useFaceDetection() {
 
   const startCamera = useCallback(async () => {
     try {
+      // Mobile-optimized: prefer lower resolution for performance
+      const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: isMobile ? 640 : 1280 },
+          height: { ideal: isMobile ? 480 : 720 },
           frameRate: { ideal: 30, max: 30 },
         },
         audio: false,
@@ -152,10 +154,10 @@ export function useFaceDetection() {
     detectingRef.current = true;
     setIsDetecting(true);
 
-    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.22 });
-    const SMOOTH_ALPHA = 0.38;
+    const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.35 });
+    const SMOOTH_ALPHA = 0.35;
     let lastDetectTime = 0;
-    const DETECT_INTERVAL = 70;
+    const DETECT_INTERVAL = 80;
 
     const detect = async (timestamp: number) => {
       if (!detectingRef.current || !videoRef.current || videoRef.current.readyState < 2) {
@@ -175,7 +177,7 @@ export function useFaceDetection() {
         try {
           const result = await faceapi
             .detectSingleFace(videoRef.current, options)
-            .withFaceLandmarks(true)
+            .withFaceLandmarks()
             .withFaceExpressions();
 
           if (result) {
