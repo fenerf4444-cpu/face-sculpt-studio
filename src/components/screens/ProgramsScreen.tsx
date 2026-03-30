@@ -23,9 +23,11 @@ const programs: Program[] = [
   { id: 'starter', name: '7 Gunluk Baslangic', desc: 'Temel hareketleri ogren', days: 7, progress: 3, gradient: 'from-emerald-500 to-teal-600', exerciseIds: ['lion-face', 'big-smile', 'brow-raise', 'o-mouth', 'fish-face'] },
   { id: 'slim', name: '14 Gun Slim Face', desc: 'Yuz hatlarini belirginlestir', days: 14, progress: 0, gradient: 'from-orange-500 to-red-500', exerciseIds: ['fish-face', 'jaw-lift', 'cheek-puff', 'lip-protrusion'] },
   { id: 'jawline', name: 'Jawline Focus', desc: 'Cene hatti odakli program', days: 10, progress: 0, gradient: 'from-blue-500 to-indigo-600', exerciseIds: ['jaw-lift', 'lion-face', 'o-mouth', 'cheek-puff'] },
-  { id: 'eye-lift', name: 'Eye Lift Routine', desc: 'Goz cevresi guclendirme', days: 7, progress: 0, gradient: 'from-purple-500 to-pink-500', exerciseIds: ['surprise-eyes', 'brow-raise', 'wink-left'] },
+  { id: 'eye-lift', name: 'Eye Lift Routine', desc: 'Goz cevresi guclendirme', days: 7, progress: 0, gradient: 'from-purple-500 to-pink-500', exerciseIds: ['surprise-eyes', 'brow-raise', 'wink-left', 'eye-temple-lift', 'under-eye-press'] },
   { id: 'lip-track', name: 'Dudak Takip', desc: 'Dudak hareketleri ve kalem tutma', days: 7, progress: 0, gradient: 'from-pink-500 to-rose-500', exerciseIds: ['lip-slide', 'pencil-hold', 'lip-protrusion', 'fish-face'] },
-  { id: 'recovery', name: 'Recovery & Relax', desc: 'Yuz gevsetme ve rahatlama', days: 5, progress: 0, gradient: 'from-teal-400 to-cyan-500', exerciseIds: ['lip-protrusion', 'o-mouth', 'brow-raise'] },
+  { id: 'hand-assisted', name: 'El Destekli Yoga', desc: 'Parmaklarla desteklenen yuz egzersizleri', days: 7, progress: 0, gradient: 'from-amber-500 to-yellow-500', exerciseIds: ['eye-temple-lift', 'smile-lift', 'nose-bridge-press', 'wide-smile-stretch', 'under-eye-press', 'forehead-smooth', 'jaw-side-stretch'] },
+  { id: 'full-face', name: 'Tam Yuz Programi', desc: 'Tum bolgeler icin kapsamli antrenman', days: 14, progress: 0, gradient: 'from-violet-500 to-fuchsia-500', exerciseIds: ['forehead-smooth', 'eye-temple-lift', 'smile-lift', 'wide-smile-stretch', 'jaw-side-stretch', 'lion-face', 'cheek-puff'] },
+  { id: 'recovery', name: 'Recovery & Relax', desc: 'Yuz gevsetme ve rahatlama', days: 5, progress: 0, gradient: 'from-teal-400 to-cyan-500', exerciseIds: ['nose-bridge-press', 'under-eye-press', 'forehead-smooth', 'lip-protrusion', 'o-mouth'] },
 ];
 
 type ProgramPhase = 'list' | 'detail' | 'preparing' | 'training' | 'done';
