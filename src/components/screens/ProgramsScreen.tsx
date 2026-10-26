@@ -149,6 +149,7 @@ export function ProgramsScreen() {
         const next = prev - delta;
         if (next <= 0) {
           setXp(p => p + 25);
+          if (evaluationRef.current) sessionAccuracies.current.push(evaluationRef.current.accuracyScore);
           if (currentSet >= (ex.reps || 3)) {
             setCompletedIds(p => new Set(p).add(ex.id));
             setCombo(p => p + 1);
