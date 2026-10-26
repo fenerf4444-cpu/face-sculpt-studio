@@ -62,7 +62,7 @@ export function SessionSummary({ score, onClose, coachMessage }: SessionSummaryP
 
         {coachMessage && (
           <div className="card-3d p-4 mb-5" style={{ borderColor: 'hsl(350 85% 55% / 0.2)' }}>
-            <p className="text-[10px] text-muted-foreground font-display mb-1">AI KOC</p>
+            <p className="text-[10px] text-muted-foreground font-display mb-1">KOC NOTU</p>
             <p className="text-sm text-foreground">{coachMessage}</p>
           </div>
         )}
