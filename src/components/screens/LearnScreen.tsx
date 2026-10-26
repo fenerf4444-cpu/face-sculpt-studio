@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { EXERCISES } from '@/data/exercises';
+import { EXERCISES, EXERCISE_SCIENCE } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { ExerciseDefinition, ExerciseZone } from '@/types/exercises';
 import { exerciseIcons } from '@/assets/iconMap';
@@ -63,6 +63,15 @@ export function LearnScreen() {
               <h3 className="font-display text-xs font-bold text-secondary mb-2">NASIL YAPILIR</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{selectedExercise.howToTr}</p>
             </div>
+            {EXERCISE_SCIENCE[selectedExercise.id] && (
+              <div className="card-3d p-4">
+                <h3 className="font-display text-xs font-bold text-neon-cyan mb-2">BILIMSEL TEMEL</h3>
+                <p className="text-[10px] font-display font-bold text-foreground mb-1.5">
+                  Hedef kaslar: {EXERCISE_SCIENCE[selectedExercise.id].muscles}
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{EXERCISE_SCIENCE[selectedExercise.id].science}</p>
+              </div>
+            )}
             <div className="card-3d p-4">
               <h3 className="font-display text-xs font-bold text-neon-orange mb-2">SIK HATALAR</h3>
               <ul className="space-y-1.5">

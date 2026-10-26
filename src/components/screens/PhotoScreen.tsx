@@ -98,7 +98,7 @@ export function PhotoScreen() {
 
   if (isCameraOpen) {
     return (
-      <div className="relative h-[calc(100vh-4rem)] bg-background">
+      <div className="relative h-[100dvh] bg-background">
         <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
         {/* Face guide overlay */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

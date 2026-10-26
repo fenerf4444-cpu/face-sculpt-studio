@@ -428,7 +428,7 @@ export const EXERCISE_SCIENCE: Record<string, { muscles: string; science: string
   },
   'under-eye-press': {
     muscles: 'Orbicularis oculi (alt kisim)',
-    science: 'Goz altina hafif dokunuslu masaj, bolgedeki lenfatik drenaji destekler. Lenfatik dola$imin artmasi, goz alti siskinliginin azalmasiyla iliskilendirilir.',
+    science: 'Goz altina hafif dokunuslu masaj, bolgedeki lenfatik drenaji destekler. Lenfatik dolasimin artmasi, goz alti siskinliginin azalmasiyla iliskilendirilir.',
   },
   'forehead-smooth': {
     muscles: 'Frontalis, corrugator supercilii',
