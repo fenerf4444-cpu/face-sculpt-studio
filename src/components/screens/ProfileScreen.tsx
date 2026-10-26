@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { uiIcons } from '@/assets/iconMap';
+import { loadSessions, getStreak, getTotalStats } from '@/lib/session-store';
 
 export function ProfileScreen() {
   const [username, setUsername] = useState(() => localStorage.getItem('facegym-name') || 'Anonim Kullanici');
@@ -10,6 +11,10 @@ export function ProfileScreen() {
   const [morningTime, setMorningTime] = useState(() => localStorage.getItem('facegym-morning') || '08:00');
   const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('facegym-evening') || '20:00');
   const [openSection, setOpenSection] = useState<string | null>(null);
+  const [profileStats] = useState(() => {
+    const sessions = loadSessions();
+    return { streak: getStreak(sessions), ...getTotalStats(sessions) };
+  });
 
   useEffect(() => { localStorage.setItem('facegym-name', username); }, [username]);
   useEffect(() => { localStorage.setItem('facegym-morning', morningTime); }, [morningTime]);
@@ -66,9 +71,9 @@ export function ProfileScreen() {
 
       <div className="flex justify-center gap-4">
         {[
-          { label: 'STREAK', value: '3', icon: uiIcons.streakFire },
-          { label: 'XP', value: '1,240', icon: uiIcons.xpBolt },
-          { label: 'SEANS', value: '12', icon: uiIcons.progressFace },
+          { label: 'STREAK', value: `${profileStats.streak}`, icon: uiIcons.streakFire },
+          { label: 'XP', value: profileStats.totalXP.toLocaleString('tr-TR'), icon: uiIcons.xpBolt },
+          { label: 'SEANS', value: `${profileStats.totalSessions}`, icon: uiIcons.progressFace },
         ].map((s) => (
           <div key={s.label} className="card-3d p-3 text-center flex-1">
             <img src={s.icon} alt="" width={20} height={20} className="mx-auto mb-1.5 object-contain" loading="lazy" />
