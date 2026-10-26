@@ -8,34 +8,34 @@ import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { CompatibilityCheck } from '@/components/CompatibilityCheck';
 import { TrainingHUD } from '@/components/TrainingHUD';
 import { EVALUATOR_MAP } from '@/lib/evaluators';
+import { saveSession, getProgramProgress, setProgramDay, getActiveProgramId, setActiveProgramId } from '@/lib/session-store';
 
 interface Program {
   id: string;
   name: string;
   desc: string;
   days: number;
-  progress: number;
   gradient: string;
   exerciseIds: string[];
 }
 
 const programs: Program[] = [
-  { id: 'starter', name: '7 Gunluk Baslangic', desc: 'Temel hareketleri ogren', days: 7, progress: 3, gradient: 'from-emerald-500 to-teal-600', exerciseIds: ['lion-face', 'big-smile', 'brow-raise', 'o-mouth', 'fish-face'] },
-  { id: 'slim', name: '14 Gun Slim Face', desc: 'Yuz hatlarini belirginlestir', days: 14, progress: 0, gradient: 'from-orange-500 to-red-500', exerciseIds: ['fish-face', 'jaw-lift', 'cheek-puff', 'lip-protrusion'] },
-  { id: 'jawline', name: 'Jawline Focus', desc: 'Cene hatti odakli program', days: 10, progress: 0, gradient: 'from-blue-500 to-indigo-600', exerciseIds: ['jaw-lift', 'lion-face', 'o-mouth', 'cheek-puff'] },
-  { id: 'eye-lift', name: 'Eye Lift Routine', desc: 'Goz cevresi guclendirme', days: 7, progress: 0, gradient: 'from-purple-500 to-pink-500', exerciseIds: ['surprise-eyes', 'brow-raise', 'wink-left', 'eye-temple-lift', 'under-eye-press'] },
-  { id: 'lip-track', name: 'Dudak Takip', desc: 'Dudak hareketleri ve kalem tutma', days: 7, progress: 0, gradient: 'from-pink-500 to-rose-500', exerciseIds: ['lip-slide', 'pencil-hold', 'lip-protrusion', 'fish-face'] },
-  { id: 'hand-assisted', name: 'El Destekli Yoga', desc: 'Parmaklarla desteklenen yuz egzersizleri', days: 7, progress: 0, gradient: 'from-amber-500 to-yellow-500', exerciseIds: ['eye-temple-lift', 'smile-lift', 'nose-bridge-press', 'wide-smile-stretch', 'under-eye-press', 'forehead-smooth', 'jaw-side-stretch'] },
-  { id: 'full-face', name: 'Tam Yuz Programi', desc: 'Tum bolgeler icin kapsamli antrenman', days: 14, progress: 0, gradient: 'from-violet-500 to-fuchsia-500', exerciseIds: ['forehead-smooth', 'eye-temple-lift', 'smile-lift', 'wide-smile-stretch', 'jaw-side-stretch', 'lion-face', 'cheek-puff'] },
-  { id: 'recovery', name: 'Recovery & Relax', desc: 'Yuz gevsetme ve rahatlama', days: 5, progress: 0, gradient: 'from-teal-400 to-cyan-500', exerciseIds: ['nose-bridge-press', 'under-eye-press', 'forehead-smooth', 'lip-protrusion', 'o-mouth'] },
+  { id: 'starter', name: '7 Gunluk Baslangic', desc: 'Temel hareketleri ogren', days: 7, gradient: 'from-emerald-500 to-teal-600', exerciseIds: ['lion-face', 'big-smile', 'brow-raise', 'o-mouth', 'fish-face'] },
+  { id: 'slim', name: '14 Gun Slim Face', desc: 'Yuz hatlarini belirginlestir', days: 14, gradient: 'from-orange-500 to-red-500', exerciseIds: ['fish-face', 'jaw-lift', 'cheek-puff', 'lip-protrusion'] },
+  { id: 'jawline', name: 'Jawline Focus', desc: 'Cene hatti odakli program', days: 10, gradient: 'from-blue-500 to-indigo-600', exerciseIds: ['jaw-lift', 'lion-face', 'o-mouth', 'cheek-puff'] },
+  { id: 'eye-lift', name: 'Eye Lift Routine', desc: 'Goz cevresi guclendirme', days: 7, gradient: 'from-purple-500 to-pink-500', exerciseIds: ['surprise-eyes', 'brow-raise', 'wink-left', 'eye-temple-lift', 'under-eye-press'] },
+  { id: 'lip-track', name: 'Dudak Takip', desc: 'Dudak hareketleri ve kalem tutma', days: 7, gradient: 'from-pink-500 to-rose-500', exerciseIds: ['lip-slide', 'pencil-hold', 'lip-protrusion', 'fish-face'] },
+  { id: 'hand-assisted', name: 'El Destekli Yoga', desc: 'Parmaklarla desteklenen yuz egzersizleri', days: 7, gradient: 'from-amber-500 to-yellow-500', exerciseIds: ['eye-temple-lift', 'smile-lift', 'nose-bridge-press', 'wide-smile-stretch', 'under-eye-press', 'forehead-smooth', 'jaw-side-stretch'] },
+  { id: 'full-face', name: 'Tam Yuz Programi', desc: 'Tum bolgeler icin kapsamli antrenman', days: 14, gradient: 'from-violet-500 to-fuchsia-500', exerciseIds: ['forehead-smooth', 'eye-temple-lift', 'smile-lift', 'wide-smile-stretch', 'jaw-side-stretch', 'lion-face', 'cheek-puff'] },
+  { id: 'recovery', name: 'Recovery & Relax', desc: 'Yuz gevsetme ve rahatlama', days: 5, gradient: 'from-teal-400 to-cyan-500', exerciseIds: ['nose-bridge-press', 'under-eye-press', 'forehead-smooth', 'lip-protrusion', 'o-mouth'] },
 ];
 
 type ProgramPhase = 'list' | 'detail' | 'preparing' | 'training' | 'done';
 
 export function ProgramsScreen() {
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
-  const [activeProgram, setActiveProgram] = useState<string>('starter');
-  const [activeDayMap, setActiveDayMap] = useState<Record<string, number>>({ starter: 3 });
+  const [activeProgram, setActiveProgram] = useState<string | null>(() => getActiveProgramId());
+  const [activeDayMap, setActiveDayMap] = useState<Record<string, number>>(() => getProgramProgress());
   const [phase, setPhase] = useState<ProgramPhase>('list');
 
   // Training state
@@ -57,6 +57,8 @@ export function ProgramsScreen() {
   const lastTickSec = useRef(-1);
   const metricsRef = useRef<FaceMetrics | null>(null);
   const holdTimeRef = useRef(0);
+  const sessionAccuracies = useRef<number[]>([]);
+  const symmetrySamples = useRef<number[]>([]);
 
   useEffect(() => { metricsRef.current = metrics; }, [metrics]);
 
@@ -74,6 +76,9 @@ export function ProgramsScreen() {
     setCombo(0);
     setXp(0);
     setCompletedIds(new Set());
+    sessionAccuracies.current = [];
+    symmetrySamples.current = [];
+    setActiveProgramId(prog.id);
     setPhase('preparing');
     try {
       const ok = await startCamera();
@@ -127,6 +132,8 @@ export function ProgramsScreen() {
 
       const currentMetrics = metricsRef.current;
       if (currentMetrics) {
+        symmetrySamples.current.push(currentMetrics.symmetryScore);
+        if (symmetrySamples.current.length > 3000) symmetrySamples.current.shift();
         const evaluator = EVALUATOR_MAP[ex.id];
         if (evaluator) {
           const result = evaluator(currentMetrics, holdTimeRef.current);
@@ -149,6 +156,30 @@ export function ProgramsScreen() {
             if (nextIdx >= exercises.length) {
               clearTimer();
               stopCamera();
+              // Persist real session data
+              const zoneSeconds: Record<string, number> = {};
+              for (const e of exercises) {
+                zoneSeconds[e.zone] = (zoneSeconds[e.zone] || 0) + (e.reps || 3) * 20;
+              }
+              const symSamples = symmetrySamples.current;
+              const avgSym = symSamples.length > 0
+                ? symSamples.reduce((a, b) => a + b, 0) / symSamples.length : 0;
+              const finalXp = xp + exercises.length * 25;
+              saveSession({
+                date: new Date().toISOString(),
+                mode: 'program',
+                modeName: selectedProgram?.name || 'Program',
+                score: finalXp,
+                xp: finalXp,
+                accuracy: sessionAccuracies.current.length > 0
+                  ? Math.round((sessionAccuracies.current.reduce((a, b) => a + b, 0) / sessionAccuracies.current.length) * 100)
+                  : 0,
+                durationSec: exercises.reduce((a, e) => a + (e.reps || 3) * 20, 0),
+                symmetry: Math.round(avgSym * 100),
+                zoneSeconds,
+                exercisesCompleted: exercises.length,
+                bestCombo: combo + 1,
+              });
               setPhase('done');
               return 0;
             }
@@ -177,14 +208,13 @@ export function ProgramsScreen() {
     clearTimer();
     stopCamera();
     if (selectedProgram) {
-      setActiveDayMap(prev => ({
-        ...prev,
-        [selectedProgram.id]: Math.min((prev[selectedProgram.id] || 0) + 1, selectedProgram.days)
-      }));
+      const nextDay = Math.min((activeDayMap[selectedProgram.id] || 0) + 1, selectedProgram.days);
+      setActiveDayMap(prev => ({ ...prev, [selectedProgram.id]: nextDay }));
+      setProgramDay(selectedProgram.id, nextDay);
     }
     setPhase('list');
     setSelectedProgram(null);
-  }, [clearTimer, stopCamera, selectedProgram]);
+  }, [clearTimer, stopCamera, selectedProgram, activeDayMap]);
 
   // Training view
   if (phase === 'training') {
