@@ -194,13 +194,11 @@ export function ProgressScreen() {
             </>
           )}
 
-          {/* AI Coach - real data driven */}
+          {/* Coach note - real data driven */}
           <div className="card-3d-elevated p-4 glow-red">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded-lg btn-3d-primary flex items-center justify-center">
-                <span className="text-[10px] text-primary-foreground font-bold">AI</span>
-              </div>
-              <p className="font-display text-xs font-bold text-primary">AI KOC OZETI</p>
+              <img src={uiIcons.faceTraining} alt="" width={22} height={22} className="object-contain" />
+              <p className="font-display text-xs font-bold text-primary">KOC NOTU</p>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">{coachMessage}</p>
           </div>

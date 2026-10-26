@@ -2,7 +2,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EXERCISES, QUICK_PLAY_EXERCISES, GYMFIESTA_EXERCISES, LIP_TRACKING_EXERCISES } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
-import { ExerciseDefinition, GameMode, SessionScore, EvaluatorResult } from '@/types/exercises';
+import { ExerciseDefinition, GameMode, SessionScore, EvaluatorResult, CalibrationData } from '@/types/exercises';
+import { FaceMetrics } from '@/lib/face-detection';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { CompatibilityCheck } from '@/components/CompatibilityCheck';
 import { TrainingHUD } from '@/components/TrainingHUD';
@@ -14,7 +15,7 @@ import { uiIcons, exerciseIcons } from '@/assets/iconMap';
 import { speakCountdown, speakExerciseStart, speakRest, speakCorrectiveHint, speakEncouragement, speakSessionEnd, cancelSpeech } from '@/lib/voice-guidance';
 import { saveSession, loadSessions, getTodaySessionCount } from '@/lib/session-store';
 
-type PlayPhase = 'menu' | 'detail' | 'preparing' | 'training' | 'summary';
+type PlayPhase = 'menu' | 'detail' | 'preparing' | 'calibrating' | 'training' | 'summary';
 
 const MODES = [
   { id: 'quick-play' as GameMode, name: 'Hizli Antrenman', desc: '5 hareket, 3 set x 20 sn', icon: uiIcons.faceTraining, exercises: QUICK_PLAY_EXERCISES, glow: 'glow-red' },
@@ -85,6 +86,9 @@ export function PlayScreen() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionAccuracies = useRef<number[]>([]);
   const symmetrySamples = useRef<number[]>([]);
+  const calibrationRef = useRef<CalibrationData | null>(null);
+  const calibSamples = useRef<FaceMetrics[]>([]);
+  const [calibTimeLeft, setCalibTimeLeft] = useState(3);
   const lastVoiceHintTime = useRef(0);
   const lastEncouragementTime = useRef(0);
 
@@ -135,16 +139,56 @@ export function PlayScreen() {
     }
   }, [detailExercises, holdDuration, startCamera, startDetection]);
 
+  // Enter calibration phase: capture the user's neutral face for 3 seconds
+  // so detection thresholds adapt to their personal anatomy.
   const startTraining = useCallback(() => {
     if (!compatibility.allReady) return;
-    setPhase('training');
-    setTimeLeft(holdDuration);
-    setHoldTime(0);
-    setIsResting(false);
-    lastTickSec.current = -1;
-    const ex = detailExercises[0];
-    if (ex) speakExerciseStart(ex.nameTr, 1, ex.reps);
-  }, [compatibility.allReady, holdDuration, detailExercises]);
+    calibSamples.current = [];
+    setCalibTimeLeft(3);
+    setPhase('calibrating');
+  }, [compatibility.allReady]);
+
+  // Calibration capture loop
+  useEffect(() => {
+    if (phase !== 'calibrating') return;
+    const start = performance.now();
+    const iv = setInterval(() => {
+      const m = metricsRef.current;
+      if (m) calibSamples.current.push(m);
+      const left = Math.max(0, 3 - (performance.now() - start) / 1000);
+      setCalibTimeLeft(left);
+      if (left <= 0) {
+        clearInterval(iv);
+        const samples = calibSamples.current;
+        let neutral: Record<string, number> | null = null;
+        if (samples.length > 5) {
+          const avg = (k: keyof FaceMetrics) =>
+            samples.reduce((a, s) => a + (s[k] as number), 0) / samples.length;
+          neutral = {
+            mouthOpenness: avg('mouthOpenness'),
+            leftEyeOpenness: avg('leftEyeOpenness'),
+            rightEyeOpenness: avg('rightEyeOpenness'),
+            browRaiseLeft: avg('browRaiseLeft'),
+            browRaiseRight: avg('browRaiseRight'),
+            lipProtrusion: avg('lipProtrusion'),
+          };
+        }
+        calibrationRef.current = {
+          neutral, smile: null, blink: null, mouthOpen: null,
+          browRaise: null, cheekPuff: null, completed: !!neutral,
+        };
+        setPhase('training');
+        setTimeLeft(holdDuration);
+        setHoldTime(0);
+        holdTimeRef.current = 0;
+        setIsResting(false);
+        lastTickSec.current = -1;
+        const ex = activeExercises[0];
+        if (ex) speakExerciseStart(ex.nameTr, 1, ex.reps);
+      }
+    }, 100);
+    return () => clearInterval(iv);
+  }, [phase, holdDuration, activeExercises]);
 
   // Lip slide ball animation
   useEffect(() => {
@@ -206,7 +250,7 @@ export function PlayScreen() {
         const evaluator = EVALUATOR_MAP[ex.id];
         if (evaluator) {
           const ht = holdTimeRef.current;
-          const result = evaluator(currentMetrics, ht);
+          const result = evaluator(currentMetrics, ht, calibrationRef.current);
           setEvaluation(result);
           evaluationRef.current = result;
 
@@ -439,6 +483,38 @@ export function PlayScreen() {
             {isPaused ? 'DEVAM' : 'DURAKLAT'}
           </button>
           <button onClick={endSession} className="card-3d-elevated px-4 py-2.5 font-display text-xs font-bold text-destructive active:scale-95 transition-transform">CIK</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'calibrating') {
+    const calibProgress = ((3 - calibTimeLeft) / 3) * 100;
+    return (
+      <div className="relative h-[100dvh] bg-background overflow-hidden">
+        <div className="absolute inset-0 bg-muted overflow-hidden">
+          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
+          <FaceLandmarkOverlay landmarks={landmarks} videoSize={videoSize} activeZone={undefined} isDetected={!!metrics} />
+          <div className="absolute inset-0 pointer-events-none" style={{
+            background: 'linear-gradient(to top, hsl(240 10% 4% / 0.75) 0%, transparent 30%, transparent 70%, hsl(240 10% 4% / 0.6) 100%)'
+          }} />
+        </div>
+        <div className="absolute inset-x-0 top-8 z-20 text-center px-6">
+          <h2 className="font-display text-2xl font-bold text-foreground">KALIBRASYON</h2>
+          <p className="text-sm text-muted-foreground mt-2">Notr yuz ifadenle kameraya duz bak</p>
+          <p className="text-xs text-muted-foreground mt-1">Kamera yuzunu taniyor ve sana ozel esikler ayarlaniyor</p>
+        </div>
+        <div className="absolute inset-x-0 bottom-16 z-20 flex flex-col items-center gap-4 px-8">
+          <div className="card-3d-elevated px-6 py-4 text-center glow-green">
+            <span className="font-display text-5xl font-bold text-foreground tabular-nums">{Math.ceil(calibTimeLeft)}</span>
+          </div>
+          <div className="w-full max-w-xs card-3d-inset p-0.5 rounded-full">
+            <div className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-100"
+              style={{ width: `${calibProgress}%`, boxShadow: '0 0 10px hsl(160 75% 42% / 0.5)' }} />
+          </div>
+          <p className="text-[11px] text-muted-foreground font-display">
+            {metrics ? 'Yuz algilandi, olcum yapiliyor...' : 'Yuz araniyor...'}
+          </p>
         </div>
       </div>
     );

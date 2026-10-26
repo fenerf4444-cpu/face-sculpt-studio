@@ -223,7 +223,7 @@ export function ProgramsScreen() {
   if (phase === 'training') {
     const ex = exercises[currentIdx];
     return (
-      <div className="relative h-[calc(100vh-4rem)] bg-background">
+      <div className="relative h-[100dvh] bg-background">
         <div className="absolute inset-0">
           <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, hsl(240 10% 4% / 0.7) 0%, transparent 30%, transparent 70%, hsl(240 10% 4% / 0.5) 100%)' }} />
@@ -252,7 +252,7 @@ export function ProgramsScreen() {
 
   if (phase === 'preparing') {
     return (
-      <div className="relative h-[calc(100vh-4rem)] bg-background">
+      <div className="relative h-[100dvh] bg-background">
         <div className="absolute inset-0"><video ref={videoRef} className="w-full h-full object-cover scale-x-[-1] opacity-30" playsInline muted autoPlay /></div>
         <div className="relative z-10 flex flex-col items-center justify-center h-full p-6">
           <h2 className="font-display text-2xl font-bold text-foreground mb-6">HAZIRLIK</h2>

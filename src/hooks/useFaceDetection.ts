@@ -154,10 +154,10 @@ export function useFaceDetection() {
     detectingRef.current = true;
     setIsDetecting(true);
 
-    const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.35 });
-    const SMOOTH_ALPHA = 0.35;
+    const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 });
+    const SMOOTH_ALPHA = 0.45;
     let lastDetectTime = 0;
-    const DETECT_INTERVAL = 80;
+    const DETECT_INTERVAL = 60;
 
     const detect = async (timestamp: number) => {
       if (!detectingRef.current || !videoRef.current || videoRef.current.readyState < 2) {

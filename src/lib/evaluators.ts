@@ -480,24 +480,47 @@ export const jawSideStretchEvaluator: Evaluator = (m, holdTime) => {
     { headYaw: m.headYaw, cheekPuff: m.cheekPuffEstimate }, color);
 };
 
+// ============ PERSONAL CALIBRATION ============
+// Adjusts normalized metrics relative to the user's measured neutral face,
+// so detection thresholds fit each person's anatomy instead of generic averages.
+function applyBaseline(m: FaceMetrics, cal?: CalibrationData | null): FaceMetrics {
+  const n = cal?.neutral;
+  if (!n) return m;
+  const adj = (v: number, base: number, assumed: number) =>
+    Math.min(1, Math.max(0, v - base + assumed));
+  return {
+    ...m,
+    mouthOpenness: adj(m.mouthOpenness, n.mouthOpenness ?? 0.05, 0.05),
+    leftEyeOpenness: adj(m.leftEyeOpenness, n.leftEyeOpenness ?? 0.3, 0.3),
+    rightEyeOpenness: adj(m.rightEyeOpenness, n.rightEyeOpenness ?? 0.3, 0.3),
+    browRaiseLeft: adj(m.browRaiseLeft, n.browRaiseLeft ?? 0.15, 0.15),
+    browRaiseRight: adj(m.browRaiseRight, n.browRaiseRight ?? 0.15, 0.15),
+    lipProtrusion: adj(m.lipProtrusion, n.lipProtrusion ?? 0, 0),
+  };
+}
+
+function calibrated(ev: Evaluator): Evaluator {
+  return (m, holdTime, cal) => ev(applyBaseline(m, cal), holdTime, cal);
+}
+
 export const EVALUATOR_MAP: Record<string, Evaluator> = {
-  'lion-face': lionFaceEvaluator,
-  'fish-face': fishFaceEvaluator,
-  'big-smile': bigSmileEvaluator,
-  'surprise-eyes': surpriseEyesEvaluator,
-  'o-mouth': oMouthEvaluator,
-  'cheek-puff': cheekPuffEvaluator,
-  'jaw-lift': jawLiftEvaluator,
-  'brow-raise': browRaiseEvaluator,
-  'wink-left': winkLeftEvaluator,
-  'lip-protrusion': lipProtrusionEvaluator,
-  'lip-slide': lipSlideEvaluator,
-  'pencil-hold': pencilHoldEvaluator,
-  'eye-temple-lift': eyeTempleLiftEvaluator,
-  'smile-lift': smileLiftEvaluator,
-  'nose-bridge-press': noseBridgePressEvaluator,
-  'wide-smile-stretch': wideSmileStretchEvaluator,
-  'under-eye-press': underEyePressEvaluator,
+  'lion-face': calibrated(lionFaceEvaluator),
+  'fish-face': calibrated(fishFaceEvaluator),
+  'big-smile': calibrated(bigSmileEvaluator),
+  'surprise-eyes': calibrated(surpriseEyesEvaluator),
+  'o-mouth': calibrated(oMouthEvaluator),
+  'cheek-puff': calibrated(cheekPuffEvaluator),
+  'jaw-lift': calibrated(jawLiftEvaluator),
+  'brow-raise': calibrated(browRaiseEvaluator),
+  'wink-left': calibrated(winkLeftEvaluator),
+  'lip-protrusion': calibrated(lipProtrusionEvaluator),
+  'lip-slide': calibrated(lipSlideEvaluator),
+  'pencil-hold': calibrated(pencilHoldEvaluator),
+  'eye-temple-lift': calibrated(eyeTempleLiftEvaluator),
+  'smile-lift': calibrated(smileLiftEvaluator),
+  'nose-bridge-press': calibrated(noseBridgePressEvaluator),
+  'wide-smile-stretch': calibrated(wideSmileStretchEvaluator),
+  'under-eye-press': calibrated(underEyePressEvaluator),
   'forehead-smooth': foreheadSmoothEvaluator,
   'jaw-side-stretch': jawSideStretchEvaluator,
 };
