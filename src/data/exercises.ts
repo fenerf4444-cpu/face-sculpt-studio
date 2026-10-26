@@ -357,3 +357,85 @@ export const FULL_FACE_PROGRAM = [
 export const getExercisesByZone = (zone: string) => EXERCISES.filter(e => e.zone === zone);
 export const getExerciseById = (id: string) => EXERCISES.find(e => e.id === id);
 export const getExercisesByCategory = (cat: string) => EXERCISES.filter(e => e.category === cat);
+
+// Scientific basis for each exercise: targeted muscles and physiological rationale.
+// Facial muscles (mimic muscles) attach to skin; repeated isometric contraction
+// increases muscle tone and local blood circulation, which supports skin firmness.
+export const EXERCISE_SCIENCE: Record<string, { muscles: string; science: string }> = {
+  'lion-face': {
+    muscles: 'Orbicularis oris, orbicularis oculi, frontalis, platysma',
+    science: 'Tam yuz aktivasyonu 40\'tan fazla mimik kasini ayni anda calistirir. Genis acilis, kas liflerinde tam hareket araligi saglar ve yuzdeki kan dolasimini artirir. Duzenli tekrar, kas tonusunun korunmasina yardimci olur.',
+  },
+  'fish-face': {
+    muscles: 'Buccinator, orbicularis oris, masseter',
+    science: 'Yanak icine cekme hareketi buccinator kasini izole eder. Bu kas, yanak hacmini ve agiz cevresi destegini saglar. Izometrik kasilma, yanak bolgesindeki kas tonusunu guclendirir.',
+  },
+  'big-smile': {
+    muscles: 'Zygomaticus major, zygomaticus minor, risorius',
+    science: 'Genis gulumseme, yanaklari yukari kaldiran zygomaticus kaslarini calistirir. Bu kaslar elmacik kemigi bolgesini destekler; guclu tonus, orta yuzde daha belirgin hatlarla iliskilendirilir.',
+  },
+  'surprise-eyes': {
+    muscles: 'Frontalis, orbicularis oculi',
+    science: 'Gozleri genis acmak frontalis kasini aktive eder ve goz cevresindeki orbicularis oculi\'yi dengeler. Kontrollu tekrarlar, goz kapagi bolgesindeki kas destegini artirmayi hedefler.',
+  },
+  'o-mouth': {
+    muscles: 'Orbicularis oris, mentalis',
+    science: 'O sekli, dudak cevresindeki halkasal orbicularis oris kasini esnek sekilde calistirir. Dudak cevresi kaslari, agiz kenari cizgilerinin gorunumu uzerinde rol oynar.',
+  },
+  'cheek-puff': {
+    muscles: 'Buccinator, orbicularis oris',
+    science: 'Hava ile yanak sisirme, buccinator kasina karsi direncli izometrik calisma saglar. Dudaklarin kapali tutulmasi orbicularis oris\'i de devreye sokar; cift yonlu kas aktivasyonu yanak kontrolunu gelistirir.',
+  },
+  'jaw-lift': {
+    muscles: 'Platysma, digastric, masseter',
+    science: 'Cene kaldirma, boyun on bolgesindeki platysma kasini gerer ve cene alti kaslari aktive eder. Bu bolge, cene hattinin belirginligi acisindan anahtar kas grubudur.',
+  },
+  'brow-raise': {
+    muscles: 'Frontalis',
+    science: 'Kas kaldirma, alindaki tek kas kaldirici olan frontalis\'i izole eder. Duzensiz kullanim alin cizgilerine yol acabilir; kontrollu ve simetrik tekrar kas dengesini destekler.',
+  },
+  'wink-left': {
+    muscles: 'Orbicularis oculi (tek tarafli)',
+    science: 'Tek goz kirpma, goz cevresi kasinin tek tarafli kontrolunu gerektirir. Bu tur asimetrik kontrol egzersizleri, yuzdeki sag-sol kas dengesini gelistirmeyi hedefler.',
+  },
+  'lip-protrusion': {
+    muscles: 'Orbicularis oris, mentalis',
+    science: 'Dudaklari one uzatma, dudak cevresi halkasal kasin konsantrik kasilmasini saglar. Duzenli tekrar, dudak cevresi tonusunu ve kan dolasimini destekler.',
+  },
+  'lip-slide': {
+    muscles: 'Orbicularis oris, buccinator, risorius',
+    science: 'Yatay dudak kaydirma, agiz cevresi kaslarinin sag-sol koordinasyonunu calistirir. Ritmik hareket, noromuskuler kontrolu ve cene alti koordinasyonu gelistirir.',
+  },
+  'pencil-hold': {
+    muscles: 'Orbicularis oris, levator labii superioris',
+    science: 'Ust dudagi burna dogru kaldirmak, levator labii superioris kasini calistirir. Bu kas, ust dudagin yuksekligini ve burun-dudak bolgesinin destegini saglar.',
+  },
+  'eye-temple-lift': {
+    muscles: 'Orbicularis oculi, temporalis',
+    science: 'Sakaklara hafif basinc uygulayarak goz kenarlarini kaldirmak, goz cevresi kasina dis destekli direnc saglar. Direncli kasilma, kas liflerinin daha etkin calismasina yardimci olur.',
+  },
+  'smile-lift': {
+    muscles: 'Zygomaticus major, levator anguli oris',
+    science: 'Parmak destegiyle agiz kenarlarini yukari itmek, gulumseme kaslarina hafif direnc uygular. Direncli izometrik kasilma, kas tonusunu artirmaya yonelik temel prensiptir.',
+  },
+  'nose-bridge-press': {
+    muscles: 'Procerus, nasalis',
+    science: 'Burun koprusu bolgesine dairesel masaj, procerus ve nasalis kaslarini gevsetir. Bu kaslardaki kronik gerginlik, burun arasi cizgilerin derinlesmesiyle iliskilidir.',
+  },
+  'wide-smile-stretch': {
+    muscles: 'Zygomaticus major, buccinator, risorius',
+    science: 'Disari germe ile birlikte genis gulumseme, yanak kaslarina hem aktif kasilma hem de pasif esneme saglar. Bu kombinasyon kas esnekligini ve tonusunu birlikte destekler.',
+  },
+  'under-eye-press': {
+    muscles: 'Orbicularis oculi (alt kisim)',
+    science: 'Goz altina hafif dokunuslu masaj, bolgedeki lenfatik drenaji destekler. Lenfatik dola$imin artmasi, goz alti siskinliginin azalmasiyla iliskilendirilir.',
+  },
+  'forehead-smooth': {
+    muscles: 'Frontalis, corrugator supercilii',
+    science: 'Avuc destegiyle alni duzlestirmek, frontalis kasini gevsetir ve corrugator gerginligini azaltir. Kaslarin gevsemesi, mimik cizgilerinin derinlesmesini yavaslatmayi hedefler.',
+  },
+  'jaw-side-stretch': {
+    muscles: 'Masseter, temporalis, pterygoid',
+    science: 'Ceneyi yana kaydirmak, cigneme kaslarinin lateral kontrolunu calistirir. Sag-sol denge calismasi, cene eklemi cevresindeki kas simetrisini destekler.',
+  },
+};
