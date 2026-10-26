@@ -488,6 +488,38 @@ export function PlayScreen() {
     );
   }
 
+  if (phase === 'calibrating') {
+    const calibProgress = ((3 - calibTimeLeft) / 3) * 100;
+    return (
+      <div className="relative h-[100dvh] bg-background overflow-hidden">
+        <div className="absolute inset-0 bg-muted overflow-hidden">
+          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
+          <FaceLandmarkOverlay landmarks={landmarks} videoSize={videoSize} activeZone={undefined} isDetected={!!metrics} />
+          <div className="absolute inset-0 pointer-events-none" style={{
+            background: 'linear-gradient(to top, hsl(240 10% 4% / 0.75) 0%, transparent 30%, transparent 70%, hsl(240 10% 4% / 0.6) 100%)'
+          }} />
+        </div>
+        <div className="absolute inset-x-0 top-8 z-20 text-center px-6">
+          <h2 className="font-display text-2xl font-bold text-foreground">KALIBRASYON</h2>
+          <p className="text-sm text-muted-foreground mt-2">Notr yuz ifadenle kameraya duz bak</p>
+          <p className="text-xs text-muted-foreground mt-1">Kamera yuzunu taniyor ve sana ozel esikler ayarlaniyor</p>
+        </div>
+        <div className="absolute inset-x-0 bottom-16 z-20 flex flex-col items-center gap-4 px-8">
+          <div className="card-3d-elevated px-6 py-4 text-center glow-green">
+            <span className="font-display text-5xl font-bold text-foreground tabular-nums">{Math.ceil(calibTimeLeft)}</span>
+          </div>
+          <div className="w-full max-w-xs card-3d-inset p-0.5 rounded-full">
+            <div className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-100"
+              style={{ width: `${calibProgress}%`, boxShadow: '0 0 10px hsl(160 75% 42% / 0.5)' }} />
+          </div>
+          <p className="text-[11px] text-muted-foreground font-display">
+            {metrics ? 'Yuz algilandi, olcum yapiliyor...' : 'Yuz araniyor...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (phase === 'preparing') {
     return (
       <div className="relative h-[calc(100vh-4rem)] bg-background">
