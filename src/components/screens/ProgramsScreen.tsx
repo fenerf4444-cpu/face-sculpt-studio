@@ -59,6 +59,7 @@ export function ProgramsScreen() {
   const holdTimeRef = useRef(0);
   const sessionAccuracies = useRef<number[]>([]);
   const symmetrySamples = useRef<number[]>([]);
+  const evaluationRef = useRef<EvaluatorResult | null>(null);
 
   useEffect(() => { metricsRef.current = metrics; }, [metrics]);
 
@@ -138,6 +139,7 @@ export function ProgramsScreen() {
         if (evaluator) {
           const result = evaluator(currentMetrics, holdTimeRef.current);
           setEvaluation(result);
+          evaluationRef.current = result;
           if (result.isDetected) {
             holdTimeRef.current += delta;
             setHoldTime(holdTimeRef.current);
