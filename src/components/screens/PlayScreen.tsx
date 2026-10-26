@@ -12,6 +12,7 @@ import { NeonFaceFrame } from '@/components/NeonFaceFrame';
 import { EVALUATOR_MAP } from '@/lib/evaluators';
 import { uiIcons, exerciseIcons } from '@/assets/iconMap';
 import { speakCountdown, speakExerciseStart, speakRest, speakCorrectiveHint, speakEncouragement, speakSessionEnd, cancelSpeech } from '@/lib/voice-guidance';
+import { saveSession, loadSessions, getTodaySessionCount } from '@/lib/session-store';
 
 type PlayPhase = 'menu' | 'detail' | 'preparing' | 'training' | 'summary';
 
@@ -69,7 +70,8 @@ export function PlayScreen() {
   const [isPaused, setIsPaused] = useState(false);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [sessionScore, setSessionScore] = useState<SessionScore | null>(null);
-  const [dailyQuest] = useState({ target: 3, completed: 1 });
+  const [sessionsToday, setSessionsToday] = useState(() => getTodaySessionCount(loadSessions()));
+  const DAILY_TARGET = 3;
   const [isResting, setIsResting] = useState(false);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
   const [modelError, setModelError] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export function PlayScreen() {
   const { videoRef, metrics, landmarks, videoSize, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionAccuracies = useRef<number[]>([]);
+  const symmetrySamples = useRef<number[]>([]);
   const lastVoiceHintTime = useRef(0);
   const lastEncouragementTime = useRef(0);
 
@@ -123,6 +126,7 @@ export function PlayScreen() {
     setCompletedIds(new Set());
     setModelError(null);
     sessionAccuracies.current = [];
+    symmetrySamples.current = [];
     try {
       const ok = await startCamera();
       if (ok) startDetection();
@@ -197,6 +201,8 @@ export function PlayScreen() {
 
       const currentMetrics = metricsRef.current;
       if (currentMetrics) {
+        symmetrySamples.current.push(currentMetrics.symmetryScore);
+        if (symmetrySamples.current.length > 3000) symmetrySamples.current.shift();
         const evaluator = EVALUATOR_MAP[ex.id];
         if (evaluator) {
           const ht = holdTimeRef.current;
@@ -252,6 +258,28 @@ export function PlayScreen() {
               speakSessionEnd();
               const avgAcc = sessionAccuracies.current.length > 0
                 ? sessionAccuracies.current.reduce((a, b) => a + b, 0) / sessionAccuracies.current.length : 0.5;
+              // Persist real session data
+              const zoneSeconds: Record<string, number> = {};
+              for (const e of activeExercises) {
+                zoneSeconds[e.zone] = (zoneSeconds[e.zone] || 0) + e.reps * holdDuration;
+              }
+              const symSamples = symmetrySamples.current;
+              const avgSym = symSamples.length > 0
+                ? symSamples.reduce((a, b) => a + b, 0) / symSamples.length : 0;
+              saveSession({
+                date: new Date().toISOString(),
+                mode: selectedMode,
+                modeName: MODES.find(m => m.id === selectedMode)?.name || selectedMode,
+                score: xpRef.current + Math.round(avgAcc * 100),
+                xp: xpRef.current + 50,
+                accuracy: Math.round(avgAcc * 100),
+                durationSec: activeExercises.reduce((a, e) => a + e.reps * holdDuration, 0),
+                symmetry: Math.round(avgSym * 100),
+                zoneSeconds,
+                exercisesCompleted: completedIds.size + 1,
+                bestCombo: comboRef.current + 1,
+              });
+              setSessionsToday(getTodaySessionCount(loadSessions()));
               setSessionScore({
                 totalScore: xpRef.current + Math.round(avgAcc * 100),
                 xp: xpRef.current + 50,
@@ -520,9 +548,9 @@ export function PlayScreen() {
           <img src={uiIcons.streakFire} alt="Streak" width={40} height={40} className="float-3d" />
           <div className="flex-1">
             <p className="font-display text-sm font-bold text-foreground">GUNLUK GOREV</p>
-            <p className="text-xs text-muted-foreground">{dailyQuest.completed}/{dailyQuest.target} seans tamamla</p>
+            <p className="text-xs text-muted-foreground">{Math.min(sessionsToday, DAILY_TARGET)}/{DAILY_TARGET} seans tamamla</p>
             <div className="card-3d-inset p-0.5 rounded-full mt-2">
-              <div className="h-1.5 rounded-full bg-gradient-to-r from-red-500 to-orange-400" style={{ width: `${(dailyQuest.completed / dailyQuest.target) * 100}%`, boxShadow: '0 0 8px hsl(350 85% 55% / 0.4)' }} />
+              <div className="h-1.5 rounded-full bg-gradient-to-r from-red-500 to-orange-400" style={{ width: `${Math.min(100, (sessionsToday / DAILY_TARGET) * 100)}%`, boxShadow: '0 0 8px hsl(350 85% 55% / 0.4)' }} />
             </div>
           </div>
           <div className="card-3d-inset px-3 py-1.5 rounded-xl">
