@@ -23,6 +23,10 @@ export interface FaceMetrics {
   expressionSurprised: number;
   expressionAngry: number;
   expressionNeutral: number;
+  // Raw geometric ratios (used relative to the user's neutral calibration)
+  cheekWidthRatio: number;      // lower-cheek width / face width
+  lipRatio: number;             // lip height / lip width
+  cheekHollow: number;          // 0-1, cheeks sucked in (relative to neutral when calibrated)
 }
 
 function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
@@ -173,6 +177,10 @@ export function computeFaceMetrics(
     expressionSurprised: expressions?.surprised || 0,
     expressionAngry: expressions?.angry || 0,
     expressionNeutral: expressions?.neutral || 0,
+    cheekWidthRatio: cheekRatio,
+    lipRatio,
+    // Uncalibrated estimate: narrow mouth + slimmer lower cheeks
+    cheekHollow: Math.min(1, Math.max(0, (0.4 - mouthWidth) / 0.1 * 0.6 + (0.74 - cheekRatio) / 0.05 * 0.4)),
   };
 }
 
@@ -186,6 +194,7 @@ function getDefaultMetrics(): FaceMetrics {
     faceWidth: 0, faceHeight: 0, symmetryScore: 1,
     expressionHappy: 0, expressionSurprised: 0,
     expressionAngry: 0, expressionNeutral: 1,
+    cheekWidthRatio: 0.72, lipRatio: 0.3, cheekHollow: 0,
   };
 }
 

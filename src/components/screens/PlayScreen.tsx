@@ -171,6 +171,9 @@ export function PlayScreen() {
             browRaiseLeft: avg('browRaiseLeft'),
             browRaiseRight: avg('browRaiseRight'),
             lipProtrusion: avg('lipProtrusion'),
+            mouthWidth: avg('mouthWidth'),
+            cheekWidthRatio: avg('cheekWidthRatio'),
+            lipRatio: avg('lipRatio'),
           };
         }
         calibrationRef.current = {
