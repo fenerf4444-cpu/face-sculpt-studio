@@ -54,28 +54,32 @@ export const lionFaceEvaluator: Evaluator = (m, holdTime) => {
     { mouthOpenness: m.mouthOpenness, eyeOpen: (m.leftEyeOpenness + m.rightEyeOpenness) / 2, surprised: m.expressionSurprised }, color);
 };
 
-// ============ FISH FACE ============
-// Lips puckered (protrusion high) + mouth narrow + cheeks pulled in
+// ============ FISH FACE (cheek suck-in) ============
+// Cheeks sucked in -> mouth corners pulled toward center, lower cheeks slimmer,
+// lips pushed into a small vertical "fish" shape. Measured relative to neutral face.
 export const fishFaceEvaluator: Evaluator = (m, holdTime) => {
-  const lipsOk = m.lipProtrusion > 0.25;
-  const mouthNarrow = m.mouthWidth < 0.38;
-  const isDetected = lipsOk && mouthNarrow;
+  const hollowOk = m.cheekHollow > 0.35;
+  const lipsShape = m.lipProtrusion > 0.12 || m.cheekHollow > 0.6;
+  const mouthClosedEnough = m.mouthOpenness < 0.45;
+  const isDetected = hollowOk && lipsShape && mouthClosedEnough;
 
-  const lipScore = Math.min(1, m.lipProtrusion / 0.6) * 35;
-  const narrowScore = Math.min(1, (0.45 - m.mouthWidth) / 0.2) * 20;
+  const hollowScore = Math.min(1, m.cheekHollow / 0.7) * 40;
+  const lipScore = Math.min(1, m.lipProtrusion / 0.4) * 15;
   const holdScore = Math.min(1, holdTime / HOLD_DURATION) * 20;
   const symScore = m.symmetryScore * 15;
   const stabilityBonus = Math.abs(m.headYaw) < 0.15 ? 10 : 5;
-  const accuracy = Math.max(0, Math.min(1, (lipScore + narrowScore + holdScore + symScore + stabilityBonus) / 100));
+  const accuracy = Math.max(0, Math.min(1, (hollowScore + lipScore + holdScore + symScore + stabilityBonus) / 100));
 
   let hint: string | null = null;
   let hintTr: string | null = null;
-  if (!lipsOk) { hint = 'Pucker lips more forward'; hintTr = 'Dudaklarini daha fazla one uzat'; }
-  else if (!mouthNarrow) { hint = 'Pull cheeks in more'; hintTr = 'Yanaklarini daha fazla iceri cek'; }
+  if (!mouthClosedEnough) { hint = 'Close your mouth, lips together'; hintTr = 'Agzini kapat, dudaklar birlesik'; }
+  else if (!hollowOk) { hint = 'Suck cheeks in between your teeth'; hintTr = 'Yanaklarini dislerinin arasina dogru iceri cek'; }
+  else if (!lipsShape) { hint = 'Push lips into a fish shape'; hintTr = 'Dudaklarini balik agzi gibi one it'; }
+  else if (Math.abs(m.headYaw) > 0.2) { hint = 'Face the camera straight'; hintTr = 'Kameraya duz bak'; }
 
   const color = isDetected ? (accuracy > 0.6 ? 'green' : 'yellow') : 'red';
   return makeResult(isDetected, accuracy, Math.min(holdTime / HOLD_DURATION, 1), hint, hintTr, isDetected ? 0.8 : 0.3,
-    { lipProtrusion: m.lipProtrusion, mouthWidth: m.mouthWidth }, color);
+    { cheekHollow: m.cheekHollow, lipProtrusion: m.lipProtrusion, mouthWidth: m.mouthWidth }, color);
 };
 
 // ============ BIG SMILE ============
@@ -483,6 +487,16 @@ export const jawSideStretchEvaluator: Evaluator = (m, holdTime) => {
 // ============ PERSONAL CALIBRATION ============
 // Adjusts normalized metrics relative to the user's measured neutral face,
 // so detection thresholds fit each person's anatomy instead of generic averages.
+// Cheek suck-in relative to the user's own neutral: mouth narrowing (%) + lower-cheek slimming (%)
+function personalHollow(m: FaceMetrics, n: Record<string, number>): number {
+  if (!n.mouthWidth || !n.cheekWidthRatio) return m.cheekHollow;
+  const mouthDrop = (n.mouthWidth - m.mouthWidth) / n.mouthWidth;      // ~0.10-0.25 when sucked in
+  const cheekDrop = (n.cheekWidthRatio - m.cheekWidthRatio) / n.cheekWidthRatio; // ~0.01-0.04
+  const lipRise = n.lipRatio ? (m.lipRatio - n.lipRatio) / Math.max(0.05, n.lipRatio) : 0;
+  const score = (mouthDrop / 0.15) * 0.6 + (cheekDrop / 0.03) * 0.25 + Math.max(0, lipRise / 0.5) * 0.15;
+  return Math.min(1, Math.max(0, score));
+}
+
 function applyBaseline(m: FaceMetrics, cal?: CalibrationData | null): FaceMetrics {
   const n = cal?.neutral;
   if (!n) return m;
@@ -496,6 +510,7 @@ function applyBaseline(m: FaceMetrics, cal?: CalibrationData | null): FaceMetric
     browRaiseLeft: adj(m.browRaiseLeft, n.browRaiseLeft ?? 0.15, 0.15),
     browRaiseRight: adj(m.browRaiseRight, n.browRaiseRight ?? 0.15, 0.15),
     lipProtrusion: adj(m.lipProtrusion, n.lipProtrusion ?? 0, 0),
+    cheekHollow: personalHollow(m, n),
   };
 }
 

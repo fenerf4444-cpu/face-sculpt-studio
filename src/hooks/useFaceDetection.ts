@@ -59,6 +59,9 @@ function smoothMetrics(prev: FaceMetrics | null, next: FaceMetrics, alpha: numbe
     expressionSurprised: smoothNumber(prev.expressionSurprised, next.expressionSurprised, alpha),
     expressionAngry: smoothNumber(prev.expressionAngry, next.expressionAngry, alpha),
     expressionNeutral: smoothNumber(prev.expressionNeutral, next.expressionNeutral, alpha),
+    cheekWidthRatio: smoothNumber(prev.cheekWidthRatio, next.cheekWidthRatio, alpha),
+    lipRatio: smoothNumber(prev.lipRatio, next.lipRatio, alpha),
+    cheekHollow: smoothNumber(prev.cheekHollow, next.cheekHollow, alpha),
   };
 }
 
