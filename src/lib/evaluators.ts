@@ -487,6 +487,16 @@ export const jawSideStretchEvaluator: Evaluator = (m, holdTime) => {
 // ============ PERSONAL CALIBRATION ============
 // Adjusts normalized metrics relative to the user's measured neutral face,
 // so detection thresholds fit each person's anatomy instead of generic averages.
+// Cheek suck-in relative to the user's own neutral: mouth narrowing (%) + lower-cheek slimming (%)
+function personalHollow(m: FaceMetrics, n: Record<string, number>): number {
+  if (!n.mouthWidth || !n.cheekWidthRatio) return m.cheekHollow;
+  const mouthDrop = (n.mouthWidth - m.mouthWidth) / n.mouthWidth;      // ~0.10-0.25 when sucked in
+  const cheekDrop = (n.cheekWidthRatio - m.cheekWidthRatio) / n.cheekWidthRatio; // ~0.01-0.04
+  const lipRise = n.lipRatio ? (m.lipRatio - n.lipRatio) / Math.max(0.05, n.lipRatio) : 0;
+  const score = (mouthDrop / 0.15) * 0.6 + (cheekDrop / 0.03) * 0.25 + Math.max(0, lipRise / 0.5) * 0.15;
+  return Math.min(1, Math.max(0, score));
+}
+
 function applyBaseline(m: FaceMetrics, cal?: CalibrationData | null): FaceMetrics {
   const n = cal?.neutral;
   if (!n) return m;
@@ -500,6 +510,7 @@ function applyBaseline(m: FaceMetrics, cal?: CalibrationData | null): FaceMetric
     browRaiseLeft: adj(m.browRaiseLeft, n.browRaiseLeft ?? 0.15, 0.15),
     browRaiseRight: adj(m.browRaiseRight, n.browRaiseRight ?? 0.15, 0.15),
     lipProtrusion: adj(m.lipProtrusion, n.lipProtrusion ?? 0, 0),
+    cheekHollow: personalHollow(m, n),
   };
 }
 
