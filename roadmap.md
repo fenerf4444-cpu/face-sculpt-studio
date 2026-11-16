@@ -1,4 +1,5 @@
 # Requested update
-- [x] Restyle screens to match the supplied light wellness app reference.
-- [x] Improve Turkish coaching pacing and connect the sound setting.
-- [x] Verify mobile navigation and voice behavior; actual spoken timbre remains device-dependent and cannot be heard in this browser check.
+- [ ] Add real, goal-based Lovable AI sessions using supported exercises and safety validation.
+- [ ] Start any Learn exercise in the existing camera trainer without leaving the app.
+- [ ] Keep camera guidance clear of the face and strengthen camera lifecycle and tracking-loss handling.
+- [ ] Verify session generation, mobile navigation, camera flow and rule tests.
