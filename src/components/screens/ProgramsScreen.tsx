@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { uiIcons, exerciseIcons } from '@/assets/iconMap';
+import { Button } from '@/components/ui/button';
+import { ArrowUpRight, CalendarDays } from 'lucide-react';
 import { EXERCISES } from '@/data/exercises';
 import { ExerciseDefinition, EvaluatorResult } from '@/types/exercises';
 import { FaceMetrics } from '@/lib/face-detection';
@@ -20,14 +22,14 @@ interface Program {
 }
 
 const programs: Program[] = [
-  { id: 'starter', name: '7 Gunluk Baslangic', desc: 'Temel hareketleri ogren', days: 7, gradient: 'from-emerald-500 to-teal-600', exerciseIds: ['lion-face', 'big-smile', 'brow-raise', 'o-mouth', 'fish-face'] },
-  { id: 'slim', name: '14 Gun Slim Face', desc: 'Yuz hatlarini belirginlestir', days: 14, gradient: 'from-orange-500 to-red-500', exerciseIds: ['fish-face', 'jaw-lift', 'cheek-puff', 'lip-protrusion'] },
-  { id: 'jawline', name: 'Jawline Focus', desc: 'Cene hatti odakli program', days: 10, gradient: 'from-blue-500 to-indigo-600', exerciseIds: ['jaw-lift', 'lion-face', 'o-mouth', 'cheek-puff'] },
-  { id: 'eye-lift', name: 'Eye Lift Routine', desc: 'Goz cevresi guclendirme', days: 7, gradient: 'from-purple-500 to-pink-500', exerciseIds: ['surprise-eyes', 'brow-raise', 'wink-left', 'eye-temple-lift', 'under-eye-press'] },
-  { id: 'lip-track', name: 'Dudak Takip', desc: 'Dudak hareketleri ve kalem tutma', days: 7, gradient: 'from-pink-500 to-rose-500', exerciseIds: ['lip-slide', 'pencil-hold', 'lip-protrusion', 'fish-face'] },
-  { id: 'hand-assisted', name: 'El Destekli Yoga', desc: 'Parmaklarla desteklenen yuz egzersizleri', days: 7, gradient: 'from-amber-500 to-yellow-500', exerciseIds: ['eye-temple-lift', 'smile-lift', 'nose-bridge-press', 'wide-smile-stretch', 'under-eye-press', 'forehead-smooth', 'jaw-side-stretch'] },
-  { id: 'full-face', name: 'Tam Yuz Programi', desc: 'Tum bolgeler icin kapsamli antrenman', days: 14, gradient: 'from-violet-500 to-fuchsia-500', exerciseIds: ['forehead-smooth', 'eye-temple-lift', 'smile-lift', 'wide-smile-stretch', 'jaw-side-stretch', 'lion-face', 'cheek-puff'] },
-  { id: 'recovery', name: 'Recovery & Relax', desc: 'Yuz gevsetme ve rahatlama', days: 5, gradient: 'from-teal-400 to-cyan-500', exerciseIds: ['nose-bridge-press', 'under-eye-press', 'forehead-smooth', 'lip-protrusion', 'o-mouth'] },
+  { id: 'starter', name: '7 günlük başlangıç', desc: 'Temel hareketler ve ifade kontrolü', days: 7, gradient: 'from-emerald-500 to-teal-600', exerciseIds: ['lion-face', 'big-smile', 'brow-raise', 'o-mouth', 'fish-face'] },
+  { id: 'slim', name: 'Yanak rutini', desc: 'Yanak kasları ve hareket farkındalığı', days: 14, gradient: 'from-orange-500 to-red-500', exerciseIds: ['fish-face', 'jaw-lift', 'cheek-puff', 'lip-protrusion'] },
+  { id: 'jawline', name: 'Çene odağı', desc: 'Kontrollü çene hareketleri', days: 10, gradient: 'from-blue-500 to-indigo-600', exerciseIds: ['jaw-lift', 'lion-face', 'o-mouth', 'cheek-puff'] },
+  { id: 'eye-lift', name: 'Göz çevresi rutini', desc: 'Nazik göz çevresi hareketleri', days: 7, gradient: 'from-purple-500 to-pink-500', exerciseIds: ['surprise-eyes', 'brow-raise', 'wink-left', 'eye-temple-lift', 'under-eye-press'] },
+  { id: 'lip-track', name: 'Dudak takibi', desc: 'Dudak hareketleri ve kalem tutma', days: 7, gradient: 'from-pink-500 to-rose-500', exerciseIds: ['lip-slide', 'pencil-hold', 'lip-protrusion', 'fish-face'] },
+  { id: 'hand-assisted', name: 'El destekli yüz yogası', desc: 'Parmaklarla desteklenen yuz egzersizleri', days: 7, gradient: 'from-amber-500 to-yellow-500', exerciseIds: ['eye-temple-lift', 'smile-lift', 'nose-bridge-press', 'wide-smile-stretch', 'under-eye-press', 'forehead-smooth', 'jaw-side-stretch'] },
+  { id: 'full-face', name: 'Tüm yüz programı', desc: 'Tum bolgeler icin kapsamli antrenman', days: 14, gradient: 'from-violet-500 to-fuchsia-500', exerciseIds: ['forehead-smooth', 'eye-temple-lift', 'smile-lift', 'wide-smile-stretch', 'jaw-side-stretch', 'lion-face', 'cheek-puff'] },
+  { id: 'recovery', name: 'Gevşe & rahatla', desc: 'Yavaş, nazik yüz hareketleri', days: 5, gradient: 'from-teal-400 to-cyan-500', exerciseIds: ['nose-bridge-press', 'under-eye-press', 'forehead-smooth', 'lip-protrusion', 'o-mouth'] },
 ];
 
 type ProgramPhase = 'list' | 'detail' | 'preparing' | 'training' | 'done';
@@ -348,59 +350,22 @@ export function ProgramsScreen() {
     );
   }
 
-  // Program list
   const activeProg = programs.find(p => p.id === activeProgram);
-
   return (
-    <div className="p-4 pb-24 space-y-5">
-      <div className="text-center pt-6">
-        <h1 className="font-display text-4xl font-bold text-gradient-cool tracking-tight">PROGRAMLAR</h1>
-        <p className="text-muted-foreground text-sm mt-1">Hedefe yonelik antrenman programlari</p>
-      </div>
-
-      {activeProg && (
-        <div className="card-3d-elevated p-5 glow-green">
-          <div className="flex items-center gap-4">
-            <img src={uiIcons.progressFace} alt="" width={44} height={44} className="float-3d" />
-            <div className="flex-1">
-              <p className="text-[10px] font-display font-bold text-secondary">AKTIF PROGRAM</p>
-              <h3 className="font-display text-lg font-bold text-foreground">{activeProg.name}</h3>
-              <p className="text-xs text-muted-foreground">Gun {activeDayMap[activeProg.id] || 0} / {activeProg.days}</p>
-              <div className="card-3d-inset p-0.5 rounded-full mt-2">
-                <div className="h-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500"
-                  style={{ width: `${((activeDayMap[activeProg.id] || 0) / activeProg.days) * 100}%`, boxShadow: '0 0 8px hsl(160 75% 42% / 0.4)' }} />
-              </div>
-            </div>
-          </div>
-          <button onClick={() => setSelectedProgram(activeProg)} className="w-full mt-4 py-3 btn-3d-success text-secondary-foreground text-sm">DEVAM ET</button>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {programs.map((prog, i) => (
-          <motion.button key={prog.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-            whileTap={{ scale: 0.98 }} onClick={() => setSelectedProgram(prog)}
-            className="w-full card-3d p-4 flex items-center gap-4 text-left group transition-all">
-            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${prog.gradient} flex items-center justify-center shrink-0`}
-              style={{ boxShadow: '0 4px 15px -3px hsl(0 0% 0% / 0.4)' }}>
-              <span className="font-display text-xl font-bold text-primary-foreground">{prog.days}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="font-display text-sm font-bold text-foreground truncate">{prog.name}</h3>
-                {activeProgram === prog.id && (
-                  <div className="card-3d-inset px-1.5 py-0.5 rounded">
-                    <span className="text-[9px] font-display font-bold text-secondary">AKTIF</span>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">{prog.desc}</p>
-            </div>
-            <div className="w-8 h-8 rounded-lg card-3d-inset flex items-center justify-center shrink-0">
-              <span className="text-muted-foreground text-xs">›</span>
-            </div>
-          </motion.button>
-        ))}
+    <div className="app-screen space-y-6">
+      <header><p className="text-xs text-muted-foreground mb-1">Her gün küçük bir adım</p><h1 className="font-bold">Programlar</h1></header>
+      {activeProg && <section className="bg-muted p-5 rounded-2xl">
+        <p className="text-xs text-primary mb-2">Devam ettiğin program</p>
+        <h2 className="text-lg font-bold">{activeProg.name}</h2>
+        <p className="text-xs text-muted-foreground mt-1">{activeDayMap[activeProg.id] || 0} / {activeProg.days} gün tamamlandı</p>
+        <Button onClick={() => setSelectedProgram(activeProg)} className="mt-4 rounded-full">Devam et <ArrowUpRight /></Button>
+      </section>}
+      <div className="space-y-4">
+        {programs.map(prog => <Button variant="ghost" key={prog.id} onClick={() => setSelectedProgram(prog)} className="wellness-program w-full h-auto p-5 text-left whitespace-normal justify-start items-start gap-4">
+          <span className="shrink-0 flex flex-col items-center"><span className="text-4xl font-normal">{prog.days}</span><span className="text-[11px] text-muted-foreground mt-1">gün</span></span>
+          <span className="flex-1 min-w-0"><span className="block text-base font-bold">{prog.name}</span><span className="block text-xs font-normal text-muted-foreground mt-2">{prog.desc}</span><span className="flex items-center gap-1.5 text-[10px] text-primary mt-4"><CalendarDays className="w-3 h-3" /> {prog.exerciseIds.length} hareket · Rehberli rutin</span></span>
+          <ArrowUpRight className="text-primary" />
+        </Button>)}
       </div>
     </div>
   );

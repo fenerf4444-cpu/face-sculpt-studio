@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EXERCISES, QUICK_PLAY_EXERCISES, GYMFIESTA_EXERCISES, LIP_TRACKING_EXERCISES } from '@/data/exercises';
-import { ExerciseCard } from '@/components/ExerciseCard';
+import { WellnessHome } from '@/components/WellnessHome';
 import { ExerciseDefinition, GameMode, SessionScore, EvaluatorResult, CalibrationData } from '@/types/exercises';
 import { FaceMetrics } from '@/lib/face-detection';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
@@ -614,61 +614,5 @@ export function PlayScreen() {
     );
   }
 
-  // Menu
-  return (
-    <div className="p-4 pb-24 space-y-6">
-      <div className="text-center pt-6">
-        <h1 className="font-display text-4xl font-bold text-gradient-primary tracking-tight">OYNA</h1>
-        <p className="text-muted-foreground text-sm mt-1">Kamerani ac, antrenmanina basla</p>
-      </div>
-
-      <div className="card-3d-elevated p-4 glow-red shimmer">
-        <div className="flex items-center gap-3">
-          <img src={uiIcons.streakFire} alt="Streak" width={40} height={40} className="float-3d" />
-          <div className="flex-1">
-            <p className="font-display text-sm font-bold text-foreground">GUNLUK GOREV</p>
-            <p className="text-xs text-muted-foreground">{Math.min(sessionsToday, DAILY_TARGET)}/{DAILY_TARGET} seans tamamla</p>
-            <div className="card-3d-inset p-0.5 rounded-full mt-2">
-              <div className="h-1.5 rounded-full bg-gradient-to-r from-red-500 to-orange-400" style={{ width: `${Math.min(100, (sessionsToday / DAILY_TARGET) * 100)}%`, boxShadow: '0 0 8px hsl(350 85% 55% / 0.4)' }} />
-            </div>
-          </div>
-          <div className="card-3d-inset px-3 py-1.5 rounded-xl">
-            <span className="font-display text-xs font-bold text-neon-orange">+50 XP</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {MODES.map((mode, i) => (
-          <motion.button key={mode.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => showModeDetail(mode.id)}
-            className={`w-full card-3d-elevated p-5 flex items-center gap-4 text-left group transition-all`}>
-            <div className="relative w-14 h-14 shrink-0">
-              <img src={mode.icon} alt={mode.name} width={56} height={56} className="w-full h-full object-contain" loading="lazy" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-display text-lg font-bold text-foreground">{mode.name}</h3>
-              <p className="text-xs text-muted-foreground">{mode.desc}</p>
-              <div className="card-3d-inset inline-block px-2 py-0.5 mt-1.5 rounded-lg">
-                <span className="text-[10px] font-display text-muted-foreground">{mode.exercises.length} hareket x 3 set</span>
-              </div>
-            </div>
-            <div className="w-8 h-8 rounded-lg card-3d flex items-center justify-center">
-              <span className="text-muted-foreground text-sm">›</span>
-            </div>
-          </motion.button>
-        ))}
-      </div>
-
-      <div>
-        <h2 className="font-display text-lg font-bold text-foreground mb-3">HAREKETLER</h2>
-        <div className="space-y-2.5">
-          {EXERCISES.slice(0, 4).map((ex) => (
-            <ExerciseCard key={ex.id} exercise={ex} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <WellnessHome onStart={showModeDetail} sessionsToday={sessionsToday} />;
 }
