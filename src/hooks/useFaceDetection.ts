@@ -84,7 +84,7 @@ export function useFaceDetection() {
   const attachVideo = useCallback((node: HTMLVideoElement | null) => {
     videoRef.current = node;
     if (node && streamRef.current) {
-      node.srcObject = streamRef.current;
+      if (node.srcObject !== streamRef.current) node.srcObject = streamRef.current;
       void node.play().catch(() => {});
     }
   }, []);
