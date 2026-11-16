@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 import { FaceMetrics, computeFaceMetrics, estimateLightLevel } from '@/lib/face-detection';
+import { loadMediaPipe, detectMediaPipe, refineWithBlendshapes } from '@/lib/mediapipe-engine';
 import { CompatibilityState, FaceStatus, LightStatus, CameraStatus, TrackingConfidence } from '@/types/exercises';
 
 let modelsLoaded = false;
@@ -98,7 +99,11 @@ export function useFaceDetection() {
   }, []);
 
   useEffect(() => {
-    loadModels().then(() => setModelsReady(true));
+    // Prefer MediaPipe (478-point mesh + blendshapes); face-api.js is the fallback
+    loadMediaPipe().then(mp => {
+      if (mp) setModelsReady(true);
+      else loadModels().then(() => setModelsReady(true));
+    });
   }, []);
 
   const startCamera = useCallback(async () => {
@@ -160,7 +165,7 @@ export function useFaceDetection() {
     const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 });
     const SMOOTH_ALPHA = 0.45;
     let lastDetectTime = 0;
-    const DETECT_INTERVAL = 60;
+    const DETECT_INTERVAL = 33;
 
     const detect = async (timestamp: number) => {
       if (!detectingRef.current || !videoRef.current || videoRef.current.readyState < 2) {
@@ -177,7 +182,30 @@ export function useFaceDetection() {
       if (timestamp - lastDetectTime >= DETECT_INTERVAL) {
         lastDetectTime = timestamp;
 
-        try {
+        const mp = detectMediaPipe(videoRef.current);
+        if (mp !== undefined) {
+          if (mp) {
+            missedFramesRef.current = 0;
+            const raw = refineWithBlendshapes(computeFaceMetrics(mp.points68), mp.blend);
+            const pts = smoothLandmarks(smoothedLandmarksRef.current, mp.points68, 0.6);
+            const met = smoothMetrics(smoothedMetricsRef.current, raw, 0.55);
+            smoothedLandmarksRef.current = pts; smoothedMetricsRef.current = met;
+            setMetrics(met); setLandmarks(pts);
+            const vw = videoRef.current.videoWidth || 640;
+            setVideoSize({ w: vw, h: videoRef.current.videoHeight || 480 });
+            const ratio = mp.box.width / vw;
+            const faceStatus: FaceStatus = ratio > 0.8 ? 'too-close' : ratio < 0.14 ? 'too-far' : 'detected';
+            updateCompatibility({ face: faceStatus, tracking: 'high' });
+          } else {
+            missedFramesRef.current += 1;
+            if (missedFramesRef.current < 8) updateCompatibility({ face: 'unstable', tracking: 'low' });
+            else {
+              smoothedLandmarksRef.current = null; smoothedMetricsRef.current = null;
+              setMetrics(null); setLandmarks(null);
+              updateCompatibility({ face: 'not-found', tracking: 'none' });
+            }
+          }
+        } else try {
           const result = await faceapi
             .detectSingleFace(videoRef.current, options)
             .withFaceLandmarks()
