@@ -22,7 +22,7 @@ describe('Turkish coaching', () => {
     expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
   });
   it('does not interrupt an ongoing cue with a correction', () => {
-    window.speechSynthesis.speaking = true;
+    Object.defineProperty(window.speechSynthesis, 'speaking', { value: true, configurable: true });
     speakCorrectiveHint('Agzini daha fazla ac');
     expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
   });
