@@ -71,6 +71,14 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('play');
   const [showSplash, setShowSplash] = useState(true);
 
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap';
+    document.head.appendChild(link);
+    return () => link.remove();
+  }, []);
+
   const renderScreen = () => {
     switch (activeTab) {
       case 'play': return <PlayScreen />;
@@ -90,7 +98,7 @@ const Index = () => {
       </AnimatePresence>
       {!showSplash && (
         <>
-          <div className="max-w-lg mx-auto">
+          <div className="app-shell">
             {renderScreen()}
           </div>
           <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
