@@ -117,3 +117,10 @@ body { margin: 0; }
 .app-shell > div > .text-center.pt-6 { text-align: left; padding-top: 12px; }
 .card-3d .card-3d, .card-3d-elevated .card-3d { box-shadow: none; border: none; background: transparent; border-radius: 0; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+.camera-session { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: hsl(var(--background)); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.camera-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; background: hsl(var(--muted)); }
+.camera-toolbar { flex-shrink: 0; padding: 10px 14px; border-bottom: 1px solid hsl(var(--border)); }
+.camera-coaching { flex-shrink: 0; padding: 10px 14px; background: hsl(var(--card)); border-top: 1px solid hsl(var(--border)); }
+.camera-guidance { min-height: 38px; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.camera-progress { height: 4px; width: 100%; accent-color: hsl(var(--secondary)); }
+.camera-target { width: 18px; height: 18px; border-radius: 50%; background: hsl(var(--primary)); }

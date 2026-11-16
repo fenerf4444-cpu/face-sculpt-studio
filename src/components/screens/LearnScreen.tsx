@@ -4,6 +4,8 @@ import { EXERCISES, EXERCISE_SCIENCE } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { ExerciseDefinition, ExerciseZone } from '@/types/exercises';
 import { exerciseIcons } from '@/assets/iconMap';
+import { Button } from '@/components/ui/button';
+import { Camera } from 'lucide-react';
 
 const zones: { id: ExerciseZone | 'all'; label: string }[] = [
   { id: 'all', label: 'Tumu' },
@@ -15,7 +17,7 @@ const zones: { id: ExerciseZone | 'all'; label: string }[] = [
   { id: 'neck', label: 'Boyun' },
 ];
 
-export function LearnScreen() {
+export function LearnScreen({ onStart }: { onStart: (exercise: ExerciseDefinition) => void }) {
   const [selectedZone, setSelectedZone] = useState<ExerciseZone | 'all'>('all');
   const [selectedExercise, setSelectedExercise] = useState<ExerciseDefinition | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,6 +101,8 @@ export function LearnScreen() {
             </div>
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">Ağrı olursa bırak. Kamera görünür yüz hareketini tahmin eder; el konumunu ve uygulanan basıncı doğrulamaz.</p>
+        <Button className="w-full" onClick={() => onStart(selectedExercise)}><Camera /> Bu hareketi kamerada çalış</Button>
       </div>
     );
   }

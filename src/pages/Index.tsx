@@ -8,6 +8,7 @@ import { ProgressScreen } from '@/components/screens/ProgressScreen';
 import { PhotoScreen } from '@/components/screens/PhotoScreen';
 import { ProfileScreen } from '@/components/screens/ProfileScreen';
 import appIcon from '@/assets/app-icon.png';
+import type { TrainingRequest } from '@/lib/training-request';
 
 const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   useEffect(() => {
@@ -70,6 +71,8 @@ const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
 const Index = () => {
   const [activeTab, setActiveTab] = useState('play');
   const [showSplash, setShowSplash] = useState(true);
+  const [trainingRequest, setTrainingRequest] = useState<TrainingRequest | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -81,8 +84,8 @@ const Index = () => {
 
   const renderScreen = () => {
     switch (activeTab) {
-      case 'play': return <PlayScreen />;
-      case 'learn': return <LearnScreen />;
+      case 'play': return <PlayScreen initialRequest={trainingRequest} onCameraActive={setCameraActive} onRequestConsumed={() => setTrainingRequest(null)} />;
+      case 'learn': return <LearnScreen onStart={exercise => { setTrainingRequest({ title: exercise.nameTr, exercises: [exercise] }); setActiveTab('play'); }} />;
       case 'programs': return <ProgramsScreen />;
       case 'progress': return <ProgressScreen />;
       case 'photo': return <PhotoScreen />;
@@ -101,7 +104,7 @@ const Index = () => {
           <div className="app-shell">
             {renderScreen()}
           </div>
-          <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+          {!cameraActive && <TabBar activeTab={activeTab} onTabChange={setActiveTab} />}
         </>
       )}
     </div>
