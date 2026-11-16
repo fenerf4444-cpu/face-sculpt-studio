@@ -14,13 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      session_ai_guard: {
+        Row: {
+          denied_reason: string | null
+          key: string
+          requests: number
+          window_start: string
+        }
+        Insert: {
+          denied_reason?: string | null
+          key: string
+          requests?: number
+          window_start?: string
+        }
+        Update: {
+          denied_reason?: string | null
+          key?: string
+          requests?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      reserve_session_generation: {
+        Args: { client_key: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
