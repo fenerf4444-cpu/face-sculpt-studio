@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { uiIcons } from '@/assets/iconMap';
 import { loadSessions, getStreak, getTotalStats } from '@/lib/session-store';
+import { getVoiceEnabled, setVoiceEnabled } from '@/lib/voice-guidance';
+import { Switch } from '@/components/ui/switch';
 
 export function ProfileScreen() {
   const [username, setUsername] = useState(() => localStorage.getItem('facegym-name') || 'Anonim Kullanici');
   const [editingName, setEditingName] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(true);
-  const [soundOn, setSoundOn] = useState(true);
+  const [soundOn, setSoundOn] = useState(getVoiceEnabled);
   const [morningTime, setMorningTime] = useState(() => localStorage.getItem('facegym-morning') || '08:00');
   const [eveningTime, setEveningTime] = useState(() => localStorage.getItem('facegym-evening') || '20:00');
   const [openSection, setOpenSection] = useState<string | null>(null);
@@ -134,8 +136,8 @@ export function ProfileScreen() {
         <button onClick={() => toggleSection('sound')} className="w-full card-3d p-4 flex items-center gap-3 text-left">
           <div className="w-2 h-2 rounded-full bg-neon-cyan" style={{ boxShadow: '0 0 6px hsl(185 80% 50%)' }} />
           <div className="flex-1">
-            <p className="text-sm font-display font-bold text-neon-cyan">Ses & Ritim</p>
-            <p className="text-[10px] text-muted-foreground">Muzik ve ses efektleri</p>
+            <p className="text-sm font-display font-bold text-neon-cyan">Sesli yönlendirme</p>
+            <p className="text-[10px] text-muted-foreground">Türkçe koçluk</p>
           </div>
           <div className="w-6 h-6 rounded card-3d-inset flex items-center justify-center">
             <span className="text-muted-foreground text-[10px]">{openSection === 'sound' ? '−' : '›'}</span>
@@ -145,12 +147,8 @@ export function ProfileScreen() {
           {openSection === 'sound' && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
               <div className="card-3d-inset p-4 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Ses efektleri</span>
-                <button onClick={() => setSoundOn(!soundOn)}
-                  className={`w-12 h-6 rounded-full transition-all ${soundOn ? 'bg-secondary' : 'bg-muted'}`}>
-                  <div className={`w-5 h-5 rounded-full bg-primary-foreground transition-transform ${soundOn ? 'translate-x-6' : 'translate-x-0.5'}`}
-                    style={{ boxShadow: '0 1px 3px hsl(0 0% 0% / 0.3)' }} />
-                </button>
+                <span className="text-sm text-muted-foreground">Türkçe sesli koçluk</span>
+                <Switch aria-label="Türkçe sesli koçluk" checked={soundOn} onCheckedChange={enabled => { setSoundOn(enabled); setVoiceEnabled(enabled); }} />
               </div>
             </motion.div>
           )}

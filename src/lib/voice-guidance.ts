@@ -1,71 +1,77 @@
-// Turkish voice guidance using Web Speech API
-
+// Device speech: do not fall back to a non-Turkish voice or overlap cues.
 let lastSpoken = '';
 let lastSpeakTime = 0;
-const MIN_INTERVAL = 3500; // minimum ms between voice cues
+let encouragementIndex = 0;
+const MIN_INTERVAL = 6500;
 
-function speak(text: string, force = false) {
-  if (!('speechSynthesis' in window)) return;
-  
+export function getVoiceEnabled() {
+  return localStorage.getItem('facegym-voice') !== 'off';
+}
+
+export function setVoiceEnabled(enabled: boolean) {
+  localStorage.setItem('facegym-voice', enabled ? 'on' : 'off');
+  if (!enabled) cancelSpeech();
+}
+
+export function selectTurkishVoice(voices: SpeechSynthesisVoice[]) {
+  return voices.filter(v => v.lang.toLowerCase().startsWith('tr'))
+    .sort((a, b) => Number(b.voiceURI.toLowerCase().includes('natural')) - Number(a.voiceURI.toLowerCase().includes('natural')) || Number(!b.localService) - Number(!a.localService))[0];
+}
+
+export function normalizeTurkishCue(text: string) {
+  const words: Record<string, string> = {
+    agzini: 'ağzını', agzi: 'ağzı', ac: 'aç', daha: 'daha', gozlerini: 'gözlerini', goz: 'göz',
+    yuzunu: 'yüzünü', yuz: 'yüz', yuzu: 'yüzü', balik: 'balık', buyuk: 'büyük',
+    gulumseme: 'gülümseme', gulumsle: 'gülümse', kaslarini: 'kaşlarını', kas: 'kaş',
+    ceneni: 'çeneni', cene: 'çene', kaldirma: 'kaldırma', iceri: 'içeri', cek: 'çek',
+    disa: 'dışa', dogru: 'doğru', saga: 'sağa', sola: 'sola', dudaklarini: 'dudaklarını',
+    buz: 'büz', sisir: 'şişir', sisirme: 'şişirme', alin: 'alın', 'saskin': 'şaşkın',
+  };
+  return text.replace(/[A-Za-z]+/g, word => words[word.toLowerCase()] || word);
+}
+
+function speak(text: string, priority = false) {
+  if (!getVoiceEnabled() || !('speechSynthesis' in window)) return;
+  const voice = selectTurkishVoice(window.speechSynthesis.getVoices());
+  if (!voice) return; // Incorrect-language pronunciation is worse than silence.
   const now = Date.now();
-  if (!force && text === lastSpoken && now - lastSpeakTime < MIN_INTERVAL * 2) return;
-  if (!force && now - lastSpeakTime < MIN_INTERVAL) return;
-
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
+  if (!priority && (window.speechSynthesis.speaking || now - lastSpeakTime < MIN_INTERVAL)) return;
+  if (!priority && text === lastSpoken && now - lastSpeakTime < 18000) return;
+  if (priority) window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(normalizeTurkishCue(text));
+  utterance.voice = voice;
   utterance.lang = 'tr-TR';
-  utterance.rate = 1.1;
-  utterance.pitch = 1.0;
-  utterance.volume = 0.8;
-
-  // Try Turkish voice
-  const voices = window.speechSynthesis.getVoices();
-  const trVoice = voices.find(v => v.lang.startsWith('tr'));
-  if (trVoice) utterance.voice = trVoice;
-
+  utterance.rate = 0.92;
+  utterance.pitch = 1;
+  utterance.volume = 0.85;
   window.speechSynthesis.speak(utterance);
   lastSpoken = text;
   lastSpeakTime = now;
 }
 
 export function speakCountdown(seconds: number) {
-  if (seconds === 10) speak('Son on saniye!', true);
-  else if (seconds === 5) speak('Son bes saniye!', true);
-  else if (seconds === 3) speak('Uc!', true);
-  else if (seconds === 2) speak('Iki!', true);
-  else if (seconds === 1) speak('Bir!', true);
+  if (seconds === 10) speak('Son on saniye.', true);
+  else if (seconds === 5) speak('Son beş saniye. Nefesini tutma.', true);
 }
 
 export function speakExerciseStart(exerciseName: string, set: number, totalSets: number) {
-  speak(`${exerciseName}. Set ${set}, ${totalSets}.`, true);
+  speak(`${exerciseName}. ${totalSets} setin ${set}. seti. Nazikçe başla.`, true);
 }
-
 export function speakRest(nextName?: string) {
-  speak(nextName ? `Nefes al. Sonraki: ${nextName}` : 'Nefes al, dinlen.', true);
+  speak(nextName ? `Yüzünü gevşet. Sıradaki hareket: ${nextName}.` : 'Yüzünü gevşet. Rahatça nefes al.', true);
 }
-
 export function speakCorrectiveHint(hintTr: string | null) {
-  if (!hintTr) return;
-  speak(hintTr);
+  if (hintTr) speak(hintTr);
 }
-
 export function speakEncouragement() {
-  const phrases = [
-    'Harika devam et!',
-    'Cok iyi gidiyorsun!',
-    'Mukemmel, boyle devam!',
-    'Aferin, tutmaya devam!',
-    'Super! Biraz daha!',
-  ];
-  speak(phrases[Math.floor(Math.random() * phrases.length)]);
+  const phrases = ['İyi gidiyorsun. Nefes almaya devam et.', 'Hareketi nazikçe koru.', 'Güzel. Omuzlarını rahat bırak.'];
+  speak(phrases[encouragementIndex++ % phrases.length]);
 }
-
 export function speakSessionEnd() {
-  speak('Tebrikler! Antrenman tamamlandi!', true);
+  speak('Antrenman tamamlandı. Şimdi yüzünü gevşet. Tebrikler.', true);
 }
-
 export function cancelSpeech() {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  lastSpoken = '';
+  lastSpeakTime = 0;
 }
