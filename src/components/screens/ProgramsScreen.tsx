@@ -130,7 +130,7 @@ export function ProgramsScreen() {
     let lastTime = performance.now();
     timerRef.current = setInterval(() => {
       const now = performance.now();
-      const delta = Math.min(0.2, (now - lastTime) / 1000);
+      const delta = Math.max(0, (now - lastTime) / 1000);
       lastTime = now;
 
       const currentMetrics = metricsRef.current;
@@ -143,7 +143,7 @@ export function ProgramsScreen() {
           setEvaluation(result);
           evaluationRef.current = result;
           if (result.isDetected) {
-            holdTimeRef.current += delta;
+            holdTimeRef.current += Math.min(0.2, delta);
             setHoldTime(holdTimeRef.current);
           }
         }
