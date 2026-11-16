@@ -53,7 +53,7 @@ export function ProgramsScreen() {
   const [isResting, setIsResting] = useState(false);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
-  const { videoRef, metrics, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
+  const { attachVideo, metrics, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTickSec = useRef(-1);
@@ -212,62 +212,26 @@ export function ProgramsScreen() {
   const endSession = useCallback(() => {
     clearTimer();
     stopCamera();
-    if (selectedProgram) {
+    if (selectedProgram && phase === 'done') {
       const nextDay = Math.min((activeDayMap[selectedProgram.id] || 0) + 1, selectedProgram.days);
       setActiveDayMap(prev => ({ ...prev, [selectedProgram.id]: nextDay }));
       setProgramDay(selectedProgram.id, nextDay);
     }
     setPhase('list');
     setSelectedProgram(null);
-  }, [clearTimer, stopCamera, selectedProgram, activeDayMap]);
+  }, [clearTimer, stopCamera, selectedProgram, activeDayMap, phase]);
 
-  // Training view
-  if (phase === 'training') {
+  // Keep all text outside the camera image.
+  if (phase === 'training' || phase === 'preparing') {
     const ex = exercises[currentIdx];
-    return (
-      <div className="relative h-[100dvh] bg-background">
-        <div className="absolute inset-0">
-          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, hsl(240 10% 4% / 0.7) 0%, transparent 30%, transparent 70%, hsl(240 10% 4% / 0.5) 100%)' }} />
-        </div>
-        <AnimatePresence>
-          {isResting ? (
-            <motion.div key="rest" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 z-30 flex items-center justify-center">
-              <div className="text-center card-3d-elevated p-8 glow-green">
-                <p className="font-display text-lg text-muted-foreground">NEFES AL</p>
-                <p className="font-display text-5xl font-bold text-foreground">{Math.ceil(restTimeLeft)}</p>
-              </div>
-            </motion.div>
-          ) : (
-            <TrainingHUD exerciseName={ex?.nameTr || ''} exerciseId={ex?.id || ''} timeLeft={timeLeft} totalTime={20}
-              rep={currentSet} totalReps={ex?.reps || 3} evaluation={evaluation} combo={combo} xp={xp} isPaused={isPaused} />
-          )}
-        </AnimatePresence>
-        <div className="absolute bottom-3 inset-x-3 z-10 flex gap-2">
-          <button onClick={() => setIsPaused(!isPaused)} className="flex-1 card-3d-elevated py-2.5 font-display text-xs font-bold text-foreground">{isPaused ? 'DEVAM' : 'DURAKLAT'}</button>
-          <button onClick={endSession} className="card-3d-elevated px-4 py-2.5 font-display text-xs font-bold text-destructive">CIK</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === 'preparing') {
-    return (
-      <div className="relative h-[100dvh] bg-background">
-        <div className="absolute inset-0"><video ref={videoRef} className="w-full h-full object-cover scale-x-[-1] opacity-30" playsInline muted autoPlay /></div>
-        <div className="relative z-10 flex flex-col items-center justify-center h-full p-6">
-          <h2 className="font-display text-2xl font-bold text-foreground mb-6">HAZIRLIK</h2>
-          {!modelsReady && <div className="card-3d-elevated px-6 py-3 mb-4 glow-orange"><p className="text-sm font-display text-neon-orange">Model yukleniyor...</p></div>}
-          <div className="w-full max-w-sm mb-8"><CompatibilityCheck state={compatibility} /></div>
-          {compatibility.allReady ? (
-            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.95 }}
-              onClick={beginTraining} className="w-52 py-4 btn-3d-primary text-lg text-primary-foreground glow-red">BASLA!</motion.button>
-          ) : <p className="text-muted-foreground text-sm">Kontroller tamamlaniyor...</p>}
-          <button onClick={endSession} className="mt-4 text-sm text-muted-foreground">Geri don</button>
-        </div>
-      </div>
-    );
+    return <div className="camera-session">
+      {phase === 'training' && !isResting ? <TrainingHUD exerciseName={ex?.nameTr || ''} exerciseId={ex?.id || ''} timeLeft={timeLeft} totalTime={20} rep={currentSet} totalReps={ex?.reps || 3} evaluation={evaluation} combo={combo} xp={xp} isPaused={isPaused} /> : <header className="camera-toolbar"><h2 className="text-sm">{isResting ? `Nefes al · ${Math.ceil(restTimeLeft)} sn` : selectedProgram?.name}</h2></header>}
+      <div className="camera-viewport"><video ref={attachVideo} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay /></div>
+      <footer className="camera-coaching space-y-2">
+        <p className="camera-guidance">{!modelsReady ? 'Yüz takip sistemi yükleniyor…' : !compatibility.allReady ? 'Yüzünü kadraja getir, önden ışık al.' : isResting ? 'Yüzünü gevşet, nefesini tutma.' : evaluation?.correctiveHintTr || ex?.howToTr}</p>
+        <div className="flex gap-2">{phase === 'preparing' ? <Button disabled={!compatibility.allReady || !modelsReady} className="flex-1" onClick={beginTraining}>Başla</Button> : <Button variant="outline" className="flex-1" onClick={() => setIsPaused(!isPaused)}>{isPaused ? 'Devam' : 'Duraklat'}</Button>}<Button variant="ghost" onClick={endSession}>Kapat</Button></div>
+      </footer>
+    </div>;
   }
 
   if (phase === 'done') {
