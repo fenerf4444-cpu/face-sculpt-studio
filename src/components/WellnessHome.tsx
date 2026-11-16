@@ -9,9 +9,10 @@ import type { GameMode } from '@/types/exercises';
 interface WellnessHomeProps {
   onStart: (mode: GameMode) => void;
   sessionsToday: number;
+  onPersonalize: () => void;
 }
 
-export function WellnessHome({ onStart, sessionsToday }: WellnessHomeProps) {
+export function WellnessHome({ onStart, sessionsToday, onPersonalize }: WellnessHomeProps) {
   const [filter, setFilter] = useState('Tümü');
   const [voiceOn, setVoiceOn] = useState(getVoiceEnabled);
   const sessions = loadSessions();
@@ -61,6 +62,7 @@ export function WellnessHome({ onStart, sessionsToday }: WellnessHomeProps) {
 
       <section className="space-y-3">
         <h2 className="text-base font-bold">Sana uygun rutinler</h2>
+        <Button variant="outline" className="w-full h-auto p-4 justify-start whitespace-normal text-left" onClick={onPersonalize}><Sparkles /><span className="flex-1"><span className="block font-bold">Sana özel seans</span><span className="block text-xs text-muted-foreground font-normal mt-1">Hedeflerin ve zorlandığın hareketler</span></span><ChevronRight /></Button>
         {routines.filter(r => filter === 'Tümü' || r.category === filter).map((routine, i) => (
           <Button key={routine.mode} variant="ghost" className="wellness-program w-full h-auto p-4 justify-start text-left whitespace-normal gap-3" onClick={() => onStart(routine.mode)}>
             <span className="text-xl font-bold text-primary w-8 shrink-0">{String(i + 1).padStart(2, '0')}</span>

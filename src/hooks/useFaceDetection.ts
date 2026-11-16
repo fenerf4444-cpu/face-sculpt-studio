@@ -5,19 +5,18 @@ import { loadMediaPipe, detectMediaPipe, refineWithBlendshapes } from '@/lib/med
 import { CompatibilityState, FaceStatus, LightStatus, CameraStatus, TrackingConfidence } from '@/types/exercises';
 
 let modelsLoaded = false;
-let modelsLoading = false;
+let modelsLoading: Promise<void> | null = null;
 
 async function loadModels() {
-  if (modelsLoaded || modelsLoading) return;
-  modelsLoading = true;
+  if (modelsLoaded) return;
+  if (modelsLoading) return modelsLoading;
   const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model';
-  await Promise.all([
+  modelsLoading = Promise.all([
     faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
     faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
-  ]);
-  modelsLoaded = true;
-  modelsLoading = false;
+  ]).then(() => { modelsLoaded = true; }).finally(() => { modelsLoading = null; });
+  return modelsLoading;
 }
 
 function smoothNumber(prev: number, next: number, alpha: number) {
@@ -80,6 +79,15 @@ export function useFaceDetection() {
   const [isDetecting, setIsDetecting] = useState(false);
   const [modelsReady, setModelsReady] = useState(modelsLoaded);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const cameraGeneration = useRef(0);
+  const attachVideo = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && streamRef.current) {
+      if (node.srcObject !== streamRef.current) node.srcObject = streamRef.current;
+      void node.play().catch(() => {});
+    }
+  }, []);
   const animFrameRef = useRef<number>(0);
   const detectingRef = useRef(false);
   const smoothedLandmarksRef = useRef<{ x: number; y: number }[] | null>(null);
@@ -103,10 +111,11 @@ export function useFaceDetection() {
     loadMediaPipe().then(mp => {
       if (mp) setModelsReady(true);
       else loadModels().then(() => setModelsReady(true));
-    });
+    }).catch(() => updateCompatibility({ camera: 'error' }));
   }, []);
 
   const startCamera = useCallback(async () => {
+    const generation = ++cameraGeneration.current;
     try {
       // Mobile-optimized: prefer lower resolution for performance
       const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -119,7 +128,9 @@ export function useFaceDetection() {
         },
         audio: false,
       });
-
+      if (generation !== cameraGeneration.current) { stream.getTracks().forEach(track => track.stop()); return false; }
+      streamRef.current?.getTracks().forEach(track => track.stop());
+      streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -127,7 +138,8 @@ export function useFaceDetection() {
         return true;
       }
 
-      return false;
+      updateCompatibility({ camera: 'ready' });
+      return true;
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
         updateCompatibility({ camera: 'no-permission' as CameraStatus });
@@ -141,6 +153,9 @@ export function useFaceDetection() {
   }, [updateCompatibility]);
 
   const stopCamera = useCallback(() => {
+    cameraGeneration.current += 1;
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
     detectingRef.current = false;
     smoothedLandmarksRef.current = null;
     smoothedMetricsRef.current = null;
@@ -154,11 +169,12 @@ export function useFaceDetection() {
     setMetrics(null);
     setLandmarks(null);
     setIsDetecting(false);
+    updateCompatibility({ camera: 'checking', face: 'searching', light: 'checking', tracking: 'none' });
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-  }, []);
+  }, [updateCompatibility]);
 
   const startDetection = useCallback(() => {
-    if (!videoRef.current || !modelsReady) return;
+    if (!videoRef.current || !modelsReady || detectingRef.current) return;
     detectingRef.current = true;
     setIsDetecting(true);
 
@@ -182,7 +198,9 @@ export function useFaceDetection() {
       if (timestamp - lastDetectTime >= DETECT_INTERVAL) {
         lastDetectTime = timestamp;
 
-        const mp = detectMediaPipe(videoRef.current);
+        let mp;
+        try { mp = detectMediaPipe(videoRef.current); }
+        catch { setMetrics(null); setLandmarks(null); updateCompatibility({ face: 'unstable', tracking: 'none' }); animFrameRef.current = requestAnimationFrame(detect); return; }
         if (mp !== undefined) {
           if (mp) {
             missedFramesRef.current = 0;
@@ -197,6 +215,7 @@ export function useFaceDetection() {
             const faceStatus: FaceStatus = ratio > 0.8 ? 'too-close' : ratio < 0.14 ? 'too-far' : 'detected';
             updateCompatibility({ face: faceStatus, tracking: 'high' });
           } else {
+            setMetrics(null);
             missedFramesRef.current += 1;
             if (missedFramesRef.current < 8) updateCompatibility({ face: 'unstable', tracking: 'low' });
             else {
@@ -249,6 +268,7 @@ export function useFaceDetection() {
 
             updateCompatibility({ face: faceStatus, tracking });
           } else {
+            setMetrics(null);
             missedFramesRef.current += 1;
 
             if (missedFramesRef.current < 6) {
@@ -262,6 +282,7 @@ export function useFaceDetection() {
             }
           }
         } catch {
+          setMetrics(null);
           updateCompatibility({ face: 'unstable' as FaceStatus, tracking: 'low' as TrackingConfidence });
         }
       }
@@ -275,6 +296,10 @@ export function useFaceDetection() {
   }, [modelsReady, updateCompatibility]);
 
   useEffect(() => {
+    if (modelsReady && compatibility.camera === 'ready' && !isDetecting) startDetection();
+  }, [modelsReady, compatibility.camera, isDetecting, startDetection]);
+
+  useEffect(() => {
     return () => {
       stopCamera();
     };
@@ -282,6 +307,7 @@ export function useFaceDetection() {
 
   return {
     videoRef,
+    attachVideo,
     metrics,
     landmarks,
     videoSize,

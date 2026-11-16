@@ -1,6 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EXERCISES, QUICK_PLAY_EXERCISES, GYMFIESTA_EXERCISES, LIP_TRACKING_EXERCISES } from '@/data/exercises';
+import { Button } from '@/components/ui/button';
+import { Camera, Pause, Play, X } from 'lucide-react';
+import { PersonalSessionBuilder } from '@/components/PersonalSessionBuilder';
+import type { TrainingRequest } from '@/lib/training-request';
 import { WellnessHome } from '@/components/WellnessHome';
 import { ExerciseDefinition, GameMode, SessionScore, EvaluatorResult, CalibrationData } from '@/types/exercises';
 import { FaceMetrics } from '@/lib/face-detection';
@@ -57,7 +61,9 @@ function playCountdown(num: number) {
   } catch {}
 }
 
-export function PlayScreen() {
+export function PlayScreen({ initialRequest, onRequestConsumed, onCameraActive }: { initialRequest?: TrainingRequest | null; onRequestConsumed?: () => void; onCameraActive?: (active: boolean) => void } = {}) {
+  const [personalizing, setPersonalizing] = useState(false);
+  const [customRequest, setCustomRequest] = useState<TrainingRequest | null>(null);
   const [phase, setPhase] = useState<PlayPhase>('menu');
   const [selectedMode, setSelectedMode] = useState<GameMode>('quick-play');
   const [activeExercises, setActiveExercises] = useState<ExerciseDefinition[]>([]);
@@ -82,7 +88,7 @@ export function PlayScreen() {
   const [ballX, setBallX] = useState(50);
   const lastTickSec = useRef(-1);
 
-  const { videoRef, metrics, landmarks, videoSize, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
+  const { attachVideo, metrics, landmarks, videoSize, compatibility, modelsReady, startCamera, stopCamera, startDetection } = useFaceDetection();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionAccuracies = useRef<number[]>([]);
   const symmetrySamples = useRef<number[]>([]);
@@ -104,7 +110,30 @@ export function PlayScreen() {
   useEffect(() => { comboRef.current = combo; }, [combo]);
   useEffect(() => { xpRef.current = xp; }, [xp]);
 
-  const holdDuration = difficulty === 'hard' ? 30 : 20;
+  const holdDuration = customRequest?.personalized ? 30 : difficulty === 'hard' ? 30 : 20;
+
+  useEffect(() => {
+    if (!initialRequest) return;
+    setCustomRequest(initialRequest);
+    setDetailExercises(initialRequest.exercises);
+    setDetailModeName(initialRequest.title);
+    setSelectedMode('guided-training');
+    setPhase('detail');
+    onRequestConsumed?.();
+  }, [initialRequest, onRequestConsumed]);
+
+  useEffect(() => {
+    onCameraActive?.(['preparing', 'calibrating', 'training'].includes(phase));
+    return () => onCameraActive?.(false);
+  }, [phase, onCameraActive]);
+
+  const compatibilityRef = useRef(compatibility);
+  useEffect(() => { compatibilityRef.current = compatibility; }, [compatibility]);
+  useEffect(() => {
+    const pauseWhenHidden = () => { if (document.hidden && phase === 'training') { setIsPaused(true); cancelSpeech(); } };
+    document.addEventListener('visibilitychange', pauseWhenHidden);
+    return () => document.removeEventListener('visibilitychange', pauseWhenHidden);
+  }, [phase]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -114,6 +143,7 @@ export function PlayScreen() {
   const showModeDetail = useCallback((mode: GameMode) => {
     const modeConfig = MODES.find(m => m.id === mode);
     if (!modeConfig) return;
+    setCustomRequest(null);
     setSelectedMode(mode);
     setDetailExercises(modeConfig.exercises);
     setDetailModeName(modeConfig.name);
@@ -125,6 +155,10 @@ export function PlayScreen() {
     setPhase('preparing');
     setCurrentIdx(0);
     setCurrentSet(1);
+    setIsPaused(false);
+    setEvaluation(null);
+    evaluationRef.current = null;
+    calibrationRef.current = null;
     setCombo(0);
     setXp(0);
     setCompletedIds(new Set());
@@ -151,10 +185,11 @@ export function PlayScreen() {
   // Calibration capture loop
   useEffect(() => {
     if (phase !== 'calibrating') return;
-    const start = performance.now();
+    let start = performance.now();
     const iv = setInterval(() => {
       const m = metricsRef.current;
-      if (m) calibSamples.current.push(m);
+      if (!m || !compatibilityRef.current.allReady) { start = performance.now(); calibSamples.current = []; setCalibTimeLeft(3); return; }
+      calibSamples.current.push(m);
       const left = Math.max(0, 3 - (performance.now() - start) / 1000);
       setCalibTimeLeft(left);
       if (left <= 0) {
@@ -174,6 +209,7 @@ export function PlayScreen() {
             mouthWidth: avg('mouthWidth'),
             cheekWidthRatio: avg('cheekWidthRatio'),
             lipRatio: avg('lipRatio'),
+            cheekHollow: avg('cheekHollow'),
           };
         }
         calibrationRef.current = {
@@ -243,11 +279,11 @@ export function PlayScreen() {
     let lastTime = performance.now();
     timerRef.current = setInterval(() => {
       const now = performance.now();
-      const delta = Math.min(0.2, (now - lastTime) / 1000);
+      const delta = Math.max(0, (now - lastTime) / 1000);
       lastTime = now;
 
       const currentMetrics = metricsRef.current;
-      if (currentMetrics) {
+      if (currentMetrics && compatibilityRef.current.allReady) {
         symmetrySamples.current.push(currentMetrics.symmetryScore);
         if (symmetrySamples.current.length > 3000) symmetrySamples.current.shift();
         const evaluator = EVALUATOR_MAP[ex.id];
@@ -258,7 +294,7 @@ export function PlayScreen() {
           evaluationRef.current = result;
 
           if (result.isDetected) {
-            holdTimeRef.current += delta;
+            holdTimeRef.current += Math.min(0.2, delta);
             setHoldTime(holdTimeRef.current);
             if (Math.floor(ht) !== Math.floor(holdTimeRef.current) && Math.floor(holdTimeRef.current) > 0) {
               playTick();
@@ -274,7 +310,7 @@ export function PlayScreen() {
             }
           }
         }
-      }
+      } else { setEvaluation(null); evaluationRef.current = null; }
 
       setTimeLeft(prev => {
         const next = prev - delta;
@@ -316,7 +352,7 @@ export function PlayScreen() {
               saveSession({
                 date: new Date().toISOString(),
                 mode: selectedMode,
-                modeName: MODES.find(m => m.id === selectedMode)?.name || selectedMode,
+                modeName: detailModeName || selectedMode,
                 score: xpRef.current + Math.round(avgAcc * 100),
                 xp: xpRef.current + 50,
                 accuracy: Math.round(avgAcc * 100),
@@ -331,13 +367,14 @@ export function PlayScreen() {
                 totalScore: xpRef.current + Math.round(avgAcc * 100),
                 xp: xpRef.current + 50,
                 accuracy: avgAcc * 100,
-                holdScore: 75,
-                symmetryScore: 80,
-                rhythmScore: 70,
+                holdScore: Math.round(avgAcc * 100),
+                symmetryScore: Math.round(avgSym * 100),
+                rhythmScore: 0,
                 consistencyBonus: comboRef.current > 3 ? 20 : 0,
                 comboBonus: comboRef.current * 5,
                 streakBonus: 10,
               });
+              stopCamera();
               setPhase('summary');
               return 0;
             }
@@ -380,185 +417,31 @@ export function PlayScreen() {
     return <SessionSummary score={sessionScore} onClose={endSession} coachMessage="Harika antrenman! Tutarliligini korumaya devam et." />;
   }
 
-  if (phase === 'training') {
+  if (phase === 'training' || phase === 'calibrating' || phase === 'preparing') {
     const ex = activeExercises[currentIdx];
-    const isLipSlide = ex?.id === 'lip-slide';
-    // Determine active zone for coloring
-    const zoneColorMap: Record<string, string> = {
-      lips: 'hsl(350 85% 55% / 0.3)',
-      cheeks: 'hsl(330 85% 58% / 0.3)',
-      eyes: 'hsl(185 80% 50% / 0.3)',
-      forehead: 'hsl(25 95% 55% / 0.3)',
-      jaw: 'hsl(160 75% 42% / 0.3)',
-      neck: 'hsl(270 60% 55% / 0.3)',
-    };
-    const zoneGlow = zoneColorMap[ex?.zone || ''] || 'transparent';
-
-    return (
-      <div className="relative h-[100dvh] bg-background overflow-hidden">
-        <div className="absolute inset-0 bg-muted overflow-hidden">
-          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
-          {/* Face landmark overlay */}
-          <FaceLandmarkOverlay
-            landmarks={landmarks}
-            videoSize={videoSize}
-            activeZone={ex?.zone}
-            isDetected={evaluation?.isDetected}
-          />
-          <NeonFaceFrame
-            landmarks={landmarks}
-            videoSize={videoSize}
-            isCorrect={evaluation?.isDetected && (evaluation?.accuracyScore || 0) > 0.4}
-            isDetected={!!evaluation?.isDetected}
-          />
-          {/* Zone highlight overlay - edges only, not center */}
-          <div className="absolute inset-0 pointer-events-none" style={{
-            background: `radial-gradient(ellipse 50% 60% at 50% 45%, transparent 40%, ${zoneGlow} 100%)`
-          }} />
-          <div className="absolute inset-0 pointer-events-none" style={{
-            background: 'linear-gradient(to top, hsl(240 10% 4% / 0.7) 0%, transparent 25%, transparent 75%, hsl(240 10% 4% / 0.5) 100%)'
-          }} />
-        </div>
-
-        {/* Lip slide ball */}
-        {isLipSlide && !isResting && (
-          <motion.div
-            className="absolute z-20 pointer-events-none"
-            style={{ left: `${ballX}%`, top: '55%', transform: 'translate(-50%, -50%)' }}
-          >
-            <div className="w-10 h-10 rounded-full glow-pink" style={{
-              background: 'radial-gradient(circle, hsl(330 85% 65%), hsl(350 85% 50%))',
-              boxShadow: '0 0 20px hsl(330 85% 58% / 0.6)'
-            }} />
-          </motion.div>
-        )}
-
-        <AnimatePresence>
-          {isResting ? (
-            <motion.div key="rest" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-              className="absolute inset-0 z-30 flex items-center justify-center">
-              <div className="text-center card-3d-elevated p-8 glow-green">
-                <p className="font-display text-lg text-muted-foreground mb-2">NEFES AL</p>
-                <p className="font-display text-5xl font-bold text-foreground">{Math.ceil(restTimeLeft)}</p>
-                <p className="text-sm text-muted-foreground mt-3">
-                  {currentSet < (ex?.reps || 3) ? `Sonraki set: ${currentSet + 1}/${ex?.reps || 3}` : `Sonraki: ${activeExercises[currentIdx + 1]?.nameTr || ''}`}
-                </p>
-              </div>
-            </motion.div>
-          ) : (
-            <TrainingHUD
-              exerciseName={ex?.nameTr || ''}
-              exerciseId={ex?.id || ''}
-              timeLeft={timeLeft}
-              totalTime={holdDuration}
-              rep={currentSet}
-              totalReps={ex?.reps || 3}
-              evaluation={evaluation}
-              combo={combo}
-              xp={xp}
-              isPaused={isPaused}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Exercise sidebar - bottom right, small */}
-        <div className="absolute right-2 bottom-20 z-10 flex gap-1.5">
-          {activeExercises.map((e, i) => (
-            <div key={e.id} className={`w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-display font-bold transition-all ${
-              i === currentIdx ? 'btn-3d-primary text-primary-foreground' :
-              completedIds.has(e.id) ? 'card-3d glow-green text-secondary' :
-              'card-3d-inset text-muted-foreground'
-            }`}>{i + 1}</div>
-          ))}
-        </div>
-
-        {/* Live metrics - small, bottom left */}
-        {metrics && !isResting && (
-          <div className="absolute left-2 bottom-20 z-10 card-3d-inset p-1.5 text-[8px] font-mono text-muted-foreground opacity-50 leading-tight">
-            <div>A:{(metrics.mouthOpenness * 100).toFixed(0)}%</div>
-            <div>G:{(metrics.smileScore * 100).toFixed(0)}%</div>
-            <div>S:{(metrics.symmetryScore * 100).toFixed(0)}%</div>
-          </div>
-        )}
-
-        <div className="absolute bottom-3 inset-x-3 z-10 flex gap-2">
-          <button onClick={() => setIsPaused(!isPaused)} className="flex-1 card-3d-elevated py-2.5 font-display text-xs font-bold text-foreground active:scale-95 transition-transform">
-            {isPaused ? 'DEVAM' : 'DURAKLAT'}
-          </button>
-          <button onClick={endSession} className="card-3d-elevated px-4 py-2.5 font-display text-xs font-bold text-destructive active:scale-95 transition-transform">CIK</button>
-        </div>
+    const training = phase === 'training';
+    const calibrating = phase === 'calibrating';
+    const cameraHint = compatibility.face === 'too-close' ? 'Yüzünü biraz uzaklaştır.' : compatibility.face === 'too-far' ? 'Kameraya biraz yaklaş.' : compatibility.light === 'too-dark' ? 'Önden aydınlık bir yere geç.' : 'Yüzünü kadraja getir, kameraya düz bak.';
+    const tip = customRequest?.coachingTips?.[ex?.id || ''];
+    return <div className="camera-session">
+      {training && !isResting ? <TrainingHUD exerciseName={ex?.nameTr || ''} exerciseId={ex?.id || ''} timeLeft={timeLeft} totalTime={holdDuration} rep={currentSet} totalReps={ex?.reps || 3} evaluation={evaluation} combo={combo} xp={xp} isPaused={isPaused} /> :
+        <header className="camera-toolbar flex justify-between gap-3 items-center"><div><h2 className="text-sm">{isResting ? 'Nefes al, yüzünü gevşet' : calibrating ? 'Yüz ölçümü' : 'Kamera hazırlığı'}</h2><p className="text-xs text-muted-foreground mt-1">{isResting ? `Sonraki: ${ex?.nameTr} · Set ${currentSet}` : calibrating ? 'Nötr yüz ifadesiyle düz bak' : detailModeName}</p></div>{(isResting || calibrating) && <span className="text-2xl font-bold tabular-nums">{Math.ceil(isResting ? restTimeLeft : calibTimeLeft)}</span>}</header>}
+      <div className="camera-viewport" aria-label="Yüz takip kamerası">
+        <video ref={attachVideo} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
+        <FaceLandmarkOverlay landmarks={landmarks} videoSize={videoSize} activeZone={training ? ex?.zone : undefined} isDetected={training ? evaluation?.isDetected : !!metrics} />
+        {training && <NeonFaceFrame landmarks={landmarks} videoSize={videoSize} isCorrect={!!evaluation?.isDetected} isDetected={!!metrics} />}
       </div>
-    );
-  }
-
-  if (phase === 'calibrating') {
-    const calibProgress = ((3 - calibTimeLeft) / 3) * 100;
-    return (
-      <div className="relative h-[100dvh] bg-background overflow-hidden">
-        <div className="absolute inset-0 bg-muted overflow-hidden">
-          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted autoPlay />
-          <FaceLandmarkOverlay landmarks={landmarks} videoSize={videoSize} activeZone={undefined} isDetected={!!metrics} />
-          <div className="absolute inset-0 pointer-events-none" style={{
-            background: 'linear-gradient(to top, hsl(240 10% 4% / 0.75) 0%, transparent 30%, transparent 70%, hsl(240 10% 4% / 0.6) 100%)'
-          }} />
+      <footer className="camera-coaching space-y-2">
+        {training && ex?.id === 'lip-slide' && !isResting && <div className="relative h-5" aria-label="Dudak hareketi hedefi"><div className="camera-target absolute" style={{ left: `${ballX}%` }} /></div>}
+        <p className="camera-guidance" role="status">{isPaused ? 'Antrenman duraklatıldı.' : isResting ? 'Nefesini tutma. Bir sonraki sete rahat başlayacağız.' : !modelsReady ? 'Yüz takip sistemi yükleniyor…' : !compatibility.allReady ? cameraHint : calibrating ? 'Ölçüm boyunca yüzünü rahat bırak.' : training ? evaluation?.correctiveHintTr || tip || ex?.howToTr : 'Kamera hazır. Başlangıç ölçümünü yapabilirsin.'}</p>
+        {ex?.category !== 'auto' && training && <p className="text-[10px] text-muted-foreground">El konumu ve basınç kamera ile doğrulanmaz.</p>}
+        {phase === 'preparing' && compatibility.camera !== 'ready' && <p className="text-xs text-destructive">{compatibility.camera === 'no-permission' ? 'Kamera izni gerekli.' : compatibility.camera === 'no-camera' ? 'Kamera bulunamadı.' : 'Kamera hazırlanıyor.'}</p>}
+        <div className="flex gap-2">
+          {training ? <Button className="flex-1" variant="outline" onClick={() => { setIsPaused(!isPaused); cancelSpeech(); }}>{isPaused ? <Play /> : <Pause />}{isPaused ? 'Devam' : 'Duraklat'}</Button> : !calibrating ? <Button className="flex-1" disabled={!compatibility.allReady || !modelsReady} onClick={startTraining}><Camera /> Başla</Button> : <progress className="camera-progress flex-1 self-center" max={3} value={3 - calibTimeLeft} aria-label="Yüz ölçümü" />}
+          <Button variant="ghost" size="icon" title="Antrenmanı kapat" aria-label="Antrenmanı kapat" onClick={endSession}><X /></Button>
         </div>
-        <div className="absolute inset-x-0 top-8 z-20 text-center px-6">
-          <h2 className="font-display text-2xl font-bold text-foreground">KALIBRASYON</h2>
-          <p className="text-sm text-muted-foreground mt-2">Notr yuz ifadenle kameraya duz bak</p>
-          <p className="text-xs text-muted-foreground mt-1">Kamera yuzunu taniyor ve sana ozel esikler ayarlaniyor</p>
-        </div>
-        <div className="absolute inset-x-0 bottom-16 z-20 flex flex-col items-center gap-4 px-8">
-          <div className="card-3d-elevated px-6 py-4 text-center glow-green">
-            <span className="font-display text-5xl font-bold text-foreground tabular-nums">{Math.ceil(calibTimeLeft)}</span>
-          </div>
-          <div className="w-full max-w-xs card-3d-inset p-0.5 rounded-full">
-            <div className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-100"
-              style={{ width: `${calibProgress}%`, boxShadow: '0 0 10px hsl(160 75% 42% / 0.5)' }} />
-          </div>
-          <p className="text-[11px] text-muted-foreground font-display">
-            {metrics ? 'Yuz algilandi, olcum yapiliyor...' : 'Yuz araniyor...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === 'preparing') {
-    return (
-      <div className="relative h-[calc(100vh-4rem)] bg-background">
-        <div className="absolute inset-0">
-          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1] opacity-30" playsInline muted autoPlay />
-        </div>
-        <div className="relative z-10 flex flex-col items-center justify-center h-full p-6">
-          <h2 className="font-display text-2xl font-bold text-foreground mb-6">HAZIRLIK KONTROLU</h2>
-          {!modelsReady && (
-            <div className="card-3d-elevated px-6 py-3 mb-4 glow-orange">
-              <p className="text-sm font-display text-neon-orange">Yuz algilama modeli yukleniyor...</p>
-            </div>
-          )}
-          {modelError && (
-            <div className="card-3d-elevated px-6 py-3 mb-4 glow-red">
-              <p className="text-sm font-display text-destructive">{modelError}</p>
-            </div>
-          )}
-          <div className="w-full max-w-sm mb-8">
-            <CompatibilityCheck state={compatibility} />
-          </div>
-          <p className="text-xs text-muted-foreground mb-4 text-center max-w-xs">
-            Her hareket {holdDuration} saniye x 3 set. Setler arasi 3 sn dinlenme.
-          </p>
-          {compatibility.allReady ? (
-            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.95 }}
-              onClick={startTraining} className="w-52 py-4 btn-3d-primary text-lg text-primary-foreground glow-red">
-              BASLA!
-            </motion.button>
-          ) : (
-            <p className="text-muted-foreground text-sm">Kontroller tamamlaniyor...</p>
-          )}
-          <button onClick={endSession} className="mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors">Geri don</button>
-        </div>
-      </div>
-    );
+      </footer>
+    </div>;
   }
 
   // Exercise detail screen before camera
@@ -570,7 +453,8 @@ export function PlayScreen() {
         <p className="text-xs text-muted-foreground text-center">{detailExercises.length} hareket x 3 set x {holdDuration} sn</p>
 
         {/* Difficulty toggle */}
-        <div className="flex gap-2 justify-center">
+        {customRequest?.personalized && <p className="text-xs text-muted-foreground">Kişisel seans · 3 set × 30 saniye · Ağrı olursa bırak.</p>}
+        <div className={`flex gap-2 justify-center ${customRequest?.personalized ? 'hidden' : ''}`}>
           <button onClick={() => setDifficulty('normal')}
             className={`px-4 py-2 rounded-xl font-display text-xs font-bold transition-all ${difficulty === 'normal' ? 'btn-3d-primary text-primary-foreground' : 'card-3d text-muted-foreground'}`}>
             NORMAL (20 sn)
@@ -596,6 +480,7 @@ export function PlayScreen() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{ex.howToTr}</p>
+                {customRequest?.coachingTips?.[ex.id] && <p className="text-xs text-primary mt-2">{customRequest.coachingTips[ex.id]}</p>}
                 {ex.commonMistakesTr.length > 0 && (
                   <div className="mt-2 card-3d-inset p-2">
                     <p className="text-[9px] text-destructive font-display">Dikkat: {ex.commonMistakesTr[0]}</p>
@@ -614,5 +499,6 @@ export function PlayScreen() {
     );
   }
 
-  return <WellnessHome onStart={showModeDetail} sessionsToday={sessionsToday} />;
+  if (personalizing) return <PersonalSessionBuilder onClose={() => setPersonalizing(false)} onStart={request => { setCustomRequest(request); setSelectedMode('guided-training'); setDetailExercises(request.exercises); setDetailModeName(request.title); setPersonalizing(false); setPhase('detail'); }} />;
+  return <WellnessHome onStart={showModeDetail} sessionsToday={sessionsToday} onPersonalize={() => setPersonalizing(true)} />;
 }
